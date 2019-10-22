@@ -1,4 +1,12 @@
-﻿function Uninstall-Software  
+﻿<#
+
+This is not working now.  It looks as if something broke.  
+I am coming back to this after a few months and think that it could be cleaner.
+Suggest splitting into two scripts, one that uses command line only one uses out-grid as a choice.
+
+#>
+
+function Uninstall-Software  
 {
   <#
       .SYNOPSIS
@@ -12,22 +20,7 @@
     [String]$SoftwareName
   )
     
-  function Get-SoftwareGUID
-  {
-    param
-    (
-      [Object]
-      [Parameter(Mandatory = $true, ValueFromPipeline = $true, HelpMessage = 'Data to filter')]
-      $InputObject
-    )
-    process
-    {
-      if ($InputObject.IdentifyingNumber -match $GUID)
-      {
-        $InputObject
-      }
-    }
-  }
+
 
   $HKLMPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
   
@@ -37,7 +30,7 @@
       $_.DisplayName -match $SoftwareName
     } | Select-Object -Property DisplayName, UninstallString)
     
-    $SoftwareList = $SoftwareList | Out-GridView -PassThru -Title "Varify Software to Remove"
+    $SoftwareList = $SoftwareList | Out-GridView -PassThru -Title 'Verify Software to Remove'
     
 
   #$SoftwareList
@@ -47,12 +40,12 @@
   foreach ($app in $SoftwareList) 
   {
   if(($app.UninstallString) -match 'MSIEXEC'){
-  Write-host "MSIEXEC"
+  Write-Verbose -Message 'MSIEXEC'
   $MSIExecCount = $MSIExecCount + 1
   $MSIExecCount
   }
   elseif(($app.UninstallString) -match 'EXE'){
-  Write-host "EXE $($app.UninstallString)"
+  Write-Verbose -Message ('EXE {0}' -f $app.UninstallString)
   $EXECount = $EXECount + 1
   $EXECount
   }
@@ -67,20 +60,15 @@
       $uninst = ($app.UninstallString)
       Write-Verbose -Message ('UninstallString - {0}'  -f  $uninst)
 
-      $GUID = ($uninst.split('{')[1]).trim('}')
+      $GUID = ($uninst.split('{')).trim('}')[1]
       Write-Verbose -Message ('App GUID - {0}' -f  $GUID)
 
-      $app = Get-WmiObject -Class Win32_Product -ComputerName $env:COMPUTERNAME| Get-SoftwareGUID
+      $app = Get-WmiObject -Class Win32_Product -ComputerName $env:COMPUTERNAME| Where-Object{$_ -match $GUID}
       #$app.Uninstall()
       #Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
 
-      #Write-Host $uninst
+      Write-Verbose -Message $uninst
     }
   }
-}
-
-
-
-
 
 Uninstall-Software -SoftwareName 'Java 8 Update 161' -Verbose
