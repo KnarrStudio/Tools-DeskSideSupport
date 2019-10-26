@@ -1,16 +1,27 @@
 ﻿#requires -Version 3.0
-
 function Repair-FolderRedirection
 {
-  #Content
   <#
-      .Synopsis
-      Changes the Location on the Profile folders to match network profile
-      
-      .EXAMPLE
-      Repair-FolderRedirection
+      .SYNOPSIS
+      Changes the folder redirectionsettings in the registry.  This should be run prior to imaging a user's workstaion.
+
+      .DESCRIPTION
+      The script with verify that the path exists, and copies all of the local files to the "Remote" location, then changes the registry to mach that remote location.
+
+      .PARAMETER RemotePath
+      Makes changes and repairs the path to the home folders.
+
+      .PARAMETER TestSettings
+      Makes no changes but allows you to varify the settings.
+
       .EXAMPLE
       Repair-FolderRedirection -RemotePath 'H:\_MyComputer'
+      This will redirect the folders to the path on the "H:" drive.
+
+      .EXAMPLE
+      Repair-FolderRedirection -TestSettings
+      Sends the current settings to the screen
+      
   #>
   
   [CmdletBinding(SupportsShouldProcess,ConfirmImpact = 'High')]
@@ -18,12 +29,18 @@ function Repair-FolderRedirection
   Param
   (
     # $RemotePath Path to the Users's 'H:' drive
-    [Parameter(Mandatory = $false,ValueFromPipelineByPropertyName,Position = 0)]
-    [string]$RemotePath = "$env:HOMEDRIVE\_MyComputer"
+    [Parameter(ParameterSetName = 'Repair',ValueFromPipelineByPropertyName,Position = 0)]
+    [string]$RemotePath = "$env:HOMEDRIVE\_MyComputer",
+    [Parameter(ParameterSetName = 'Repair')]
+    [Switch]$go,
+    [Parameter (ParameterSetName = 'TestSettings')]
+    [Switch]$TestSettings
   )
   
   Begin
   {
+    $CompareList = @()
+
     $FolderList = @{
       'Desktop'   = 'Desktop'
       'Favorites' = 'Favorites'
@@ -31,6 +48,11 @@ function Repair-FolderRedirection
       'My Pictures' = 'Pictures'
       'My Video'  = 'Videos'
       'Personal'  = 'Documents'
+    }
+    
+    $WhatIfPreference = $true
+    if($go){
+    $WhatIfPreference = $false
     }
 
     $Keys = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders', 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
@@ -47,17 +69,23 @@ function Repair-FolderRedirection
       Write-Verbose -Message ('FolderName = {0}' -f $FolderName)
       Write-Verbose -Message ('OldPath = {0}' -f $OldPath)
       Write-Verbose -Message ('NewPath = {0}' -f $NewPath)
-            
+
       If(-Not(Test-Path -Path $NewPath ))
       {
         Write-Verbose -Message ('NewPath = {0}' -f $NewPath)
-        New-Item -Path $NewPath -ItemType Directory
+        if(-Not $TestSettings)
+        {
+          New-Item -Path $NewPath -ItemType Directory
+        }
       }
 
       Write-Verbose -Message ('OldPath = {0}' -f $OldPath)
       try
       {
-        Copy-Item -Path $OldPath -Destination $RemotePath -Recurse -ErrorAction stop  # -ErrorAction SilentlyContinue
+       if(-Not $TestSettings)
+        {
+          Copy-Item -Path $OldPath -Destination $RemotePath -Force -Recurse -ErrorAction Stop
+        }
       }
       catch
       {
@@ -68,19 +96,35 @@ function Repair-FolderRedirection
       {
         Write-Verbose -Message ('FolderKey = {0}' -f $FolderKey)
         Write-Verbose -Message ('FolderName = {0}' -f $FolderName)
-
         Write-Verbose -Message ('RegKey = {0}' -f $RegKey)
-        Get-ItemProperty -Path $RegKey -Name $FolderKey
+        
 
-        #Test Path - Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'
- 
-        Set-ItemProperty -Path $RegKey -Name $FolderKey -Value $NewPath
+        $LeafKey = Split-Path -Path $RegKey -Leaf
+        $CurrentSettings = Get-ItemProperty -Path $RegKey -Name $FolderKey
+        $newlist = ('{2}: {0} = {1}' -f $FolderKey, $CurrentSettings.$FolderKey, $LeafKey)
+        Write-Verbose -Message $newlist
+        $CompareList += $newlist
+       
+        <# F8 Testing::
+
+            $Key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'
+            Get-ItemProperty -Path $key
+       
+        ::Testing #>
+
+        if(-Not $TestSettings)
+        {
+          Set-ItemProperty -Path $RegKey -Name $FolderKey -Value $NewPath
+        }
       }
+    }
+
+  }
+
+  END {
+    if($TestSettings)
+    {
+      $CompareList | Sort-Object
     }
   }
 }
- 
-Repair-FolderRedirection -RemotePath 'H:\_MyComputer' -Verbose
-
-
-

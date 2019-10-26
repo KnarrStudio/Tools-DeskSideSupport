@@ -27,7 +27,7 @@ function Repair-MobiKey
   Param
   (
     # Param1 help description
-    [Parameter(Mandatory,HelpMessage='UNC or other path to where the certs are stored', Position = 0)]
+    [Parameter(Mandatory,HelpMessage = 'UNC or other path to where the certs are stored', Position = 0)]
     [string]$MobikeyCertsPath 
   )
   
@@ -39,10 +39,12 @@ function Repair-MobiKey
   Process
   {
     # First Stop the Mobikey Service 
-    Write-Verbose -Message ('Stop Mobikey Service')
-    while((Get-Service -Name $ServiceName).Status -ne 'Stopped'){
+    if((Get-Service -Name $ServiceName).Status -ne 'Stopped')
+    {
+      Write-Verbose -Message ('Mobikey Service is Running')
       Stop-Service -Name $ServiceName
-      Start-Sleep -Seconds 5
+      (Get-Service -Name $ServiceName).WaitForStatus('Stopped')
+      Write-Verbose -Message ('Mobikey Service has been stopped')
     }
     
     # Delete the old files out of the ProgramData Dir
