@@ -21,30 +21,30 @@
 # Add new users
 Begin{
   $NewUsers = @{
-    OMCuser    = @{
-      FullName            = 'OMC User'
+    RFVuser    = @{
+      FullName            = 'RFV User'
       Description         = 'Standard local Account'
       AccountGroup        = 'Users'
       AccountNeverExpires = $true
       Password            = '1qaz@WSX3edc$RFV'
     }
-    OMCAdmin   = @{
-      FullName            = 'OMC Admin'
+    RFVAdmin   = @{
+      FullName            = 'RFV Admin'
       Description         = 'Local Admin Account for IT'
       AccountGroup        = 'Administrators'
       AccountNeverExpires = $true
-      Password            = 'OMC@dm!nP@$$!!'
+      Password            = 'RFV@dm!nP@$$!!'
     }
     CRTech     = @{
-      FullName            = 'Court Room Tech User'
-      Description         = 'Standard Court Room Account'
+      FullName            = 'TV Tech User'
+      Description         = 'Standard TV Account'
       AccountGroup        = 'Users'
       AccountNeverExpires = $true
       Password            = '1qaz@WSX3edc$RFV'
     }
     CRAdmin    = @{
-      FullName            = 'Court Room Administrator'
-      Description         = 'Court Room Admin Account'
+      FullName            = 'TV Administrator'
+      Description         = 'TV Admin Account'
       AccountGroup        = 'Administrators'
       AccountNeverExpires = $true
       Password            = '1qaz@WSX3edc$RFV'
@@ -61,7 +61,7 @@ Begin{
 
 
   # Variables
-  $NewGroups = @('OMC_Users', 'OMC_Admins', 'TestGroup')
+  $NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup')
   # $Password911 = Read-Host "Enter a 911 Password" -AsSecureString
   #$PasswordUser = Read-Host -Prompt 'Enter a User Password' -AsSecureString
   #$CurrentUsers = Get-LocalUser
