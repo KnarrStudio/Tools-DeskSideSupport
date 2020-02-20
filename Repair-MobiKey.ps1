@@ -1,5 +1,5 @@
 #requires -runasadministrator
-$MobikeyCertsPath = '\\Networkshare\mobikey\certs'
+# $MobikeyCertsPath = '\\Networkshare\mobikey\certs'
 function Repair-MobiKey 
 {
   <#
@@ -15,13 +15,12 @@ function Repair-MobiKey
       You will need to make the following changes
 
       .LINK
-      https://github.com/KnarrStudio/PS-Scripts/wiki/Repair-MobiKey
-
+      https://github.com/KnarrStudio/Tools-DeskSideSupport
       The first link is opened by Get-Help -Online Repair-MobiKey
 
   #>
 
-  [CmdletBinding(HelpUri = 'https://github.com/KnarrStudio/Tools-DeskSideSupport/Repair-MobiKey.ps1',
+  [CmdletBinding(HelpUri = 'https://github.com/KnarrStudio/Tools-DeskSideSupport',
   ConfirmImpact = 'Medium')]
   [OutputType([String])]
   Param
