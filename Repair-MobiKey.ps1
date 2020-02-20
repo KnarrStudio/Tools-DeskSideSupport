@@ -7,9 +7,10 @@ function Repair-MobiKey
       Repairs the Mobkey Installation
    
       .EXAMPLE
-      Repair-MobiKey
-
       Repair-MobiKey -MobikeyCertsPath '\\Networkshare\mobikey\certs'
+      
+      .EXAMPLE
+      Repair-MobiKey -MobikeyCertsPath '\\Networkshare\mobikey\certs' -verbose
          
       .NOTES
       You will need to make the following changes
