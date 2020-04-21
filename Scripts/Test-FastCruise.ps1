@@ -82,6 +82,108 @@ Begin
     }
   }
 
+  Function Get-InstalledSoftware
+  {
+    [cmdletbinding(DefaultParameterSetName = 'SortList',SupportsPaging = $true)]
+    Param(
+    
+      [Parameter(Mandatory = $true,HelpMessage = 'At least part of the software name to test', Position = 0,ParameterSetName = 'SoftwareName')]
+      [String[]]$SoftwareName,
+      [Parameter(ParameterSetName = 'SortList')]
+      [Parameter(ParameterSetName = 'SoftwareName')]
+      [ValidateSet('InstallDate', 'DisplayName','DisplayVersion')] 
+      [String]$SortList = 'InstallDate'
+    
+    )
+  
+    Begin { 
+      $SoftwareOutput = @()
+      $InstalledSoftware = (Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*)
+    }
+  
+    Process {
+      Try 
+      {
+        if($SoftwareName -eq $null) 
+        {
+          $SoftwareOutput = $InstalledSoftware |
+          #Sort-Object -Descending -Property $SortList |
+          Select-Object -Property @{
+            Name = 'Date Installed'
+            Exp  = {
+              $_.Installdate
+            }
+          }, @{
+            Name = 'Version'
+            Exp  = {
+              $_.DisplayVersion
+            }
+          }, DisplayName #, UninstallString 
+        }
+        Else 
+        {
+          foreach($Item in $SoftwareName)
+          {
+            $SoftwareOutput += $InstalledSoftware |
+            Where-Object -Property DisplayName -Match -Value $Item |
+            Select-Object -Property @{
+              Name = 'Version'
+              Exp  = {
+                $_.DisplayVersion
+              }
+            }#, DisplayName # , UninstallString 
+          }
+        }
+      }
+      Catch 
+      {
+        # get error record
+        [Management.Automation.ErrorRecord]$e = $_
+
+        # retrieve information about runtime error
+        $info = New-Object -TypeName PSObject -Property @{
+          Exception = $e.Exception.Message
+          Reason    = $e.CategoryInfo.Reason
+          Target    = $e.CategoryInfo.TargetName
+          Script    = $e.InvocationInfo.ScriptName
+          Line      = $e.InvocationInfo.ScriptLineNumber
+          Column    = $e.InvocationInfo.OffsetInLine
+        }
+      
+        # output information. Post-process collected info, and log info (optional)
+        $info
+      }
+    }
+  
+    End{ 
+      Switch ($SortList){
+        'DisplayName' 
+        {
+          $SoftwareOutput |
+          Sort-Object -Property displayname
+        }
+        'DisplayVersion' 
+        {
+          $SoftwareOutput |
+          Sort-Object -Property 'Version'
+        }
+        'UninstallString'
+        {
+
+        }
+        default  
+        {
+          $SoftwareOutput |
+          Sort-Object -Property 'Date Installed'
+        } #'InstallDate'
+      
+      }
+    }
+  }
+
+  $MozillaVersion =  Get-InstalledSoftware -SoftwareName 'Mozilla Firefox'
+  $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
+
   Write-Verbose -Message ('Latest Status: {0}' -f $LatestStatus)
   #$LatestStatus | Format-List -Property ComputerName, Building, Room, @{Label='Desk A to Z from left';Expression={$_.Desk}},Notes
   $LatestStatus | Format-List -Property ComputerName, Building, Room, Desk, Notes
@@ -91,6 +193,8 @@ Begin
     'ComputerName' = "$env:COMPUTERNAME"
     'UserName'   = "$env:USERNAME"
     'Date'       = "$(Get-Date)"
+    'Firefox Version' = $MozillaVersion
+    'Adobe Version' = $AdobeVersion
     'Building'   = ''
     'Room'       = ''
     'Desk'       = ''
@@ -109,9 +213,13 @@ Process
 {
   Do
   {
-    $Ans = Read-Host -Prompt 'Is this correct? N/Y'
+    $Ans = Read-Host -Prompt 'Is this correct? Y/N'
   }
   While(($Ans -ne 'N') -and ($Ans -ne 'Y')) 
+
+   # $PowerPointResult
+    #$AdobeResult
+
 
   if($Ans -eq 'N')
   {
@@ -139,6 +247,8 @@ Process
     $ComputerStat['Room'] = $($LatestStatus.Room)
     $ComputerStat['Desk'] = $($LatestStatus.Desk)
     $ComputerStat['Color'] = $($LatestStatus.Color)
+    $ComputerStat['MS Office Test'] = $PowerPointResult
+    $ComputerStat['Adobe Test'] = $AdobeResult
   }
 }
 END
