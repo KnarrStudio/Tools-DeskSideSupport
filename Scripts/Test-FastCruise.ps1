@@ -1,16 +1,19 @@
 ﻿#requires -Version 4.0
 
+
 Begin
 {
-  $DescriptionLists = @{
-    Building = 'AV34', 'AV29', 'ELC1', 'ELC2', 'ELC3', 'ELC4', 'ELC5', 'ELC6', 'ELC7', 'ELC31', 'ELC32', 'ELC33', 'ELC34', 'ELC35', 'ELC36'
-    Desk     = 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'
-  }
 
   $YearMonth = Get-Date -Format yyyy-MMMM
-  $FastCruiseReport = "C:\Temp\Reports\FastCruise_$YearMonth.csv"
-
-  $Ans = '0'
+  $FastCruiseReport = ("$env:HOMEDRIVE\Temp\Reports\FastCruise_{0}.csv" -f $YearMonth)
+    Write-Verbose -Message ('Testing the Report Path: {0}' -f $FastCruiseReport)
+  if(-not (Test-Path -Path $FastCruiseReport))
+  {
+    Write-Verbose -Message 'Test Failed.  Creating the Report now.'
+    $null = New-Item -Path $FastCruiseReport -ItemType File
+  } 
+  
+  $Ans = 'z'
   $Orange = 'Blue'
   $CompImport = Import-Csv -Path $FastCruiseReport
   
@@ -22,6 +25,67 @@ Begin
   } |
   Select-Object -Last 1 
 
+  function script:Get-ComputerLocation 
+  {
+    $Department = @('CA', 'MCDO', 'OCA', 'PRO', 'TJ')
+
+    $DescriptionCA = [ordered]@{
+      Building = @('AV34', 'AV29', 'ELC1', 'ELC2', 'ELC5', 'ELC6', 'ELC7', 'ELC47', 'ELC48', 'ELC53')
+      Room     = @(1, 2, 3, 4, 5, 6, 7, 23, 24, 25, 26, 27, 28, 29, 30, 200, 214)
+      Desk     = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+    }
+
+    $DescriptionMCDO = [ordered]@{
+      Building = @('AV34', 'AV29', 'ELC3', 'ELC7', 'ELC31', 'ELC32', 'ELC33', 'ELC34', 'ELC35', 'ELC36')
+      Room     = @(1, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 100, 101, 102, 103, 104, 105, 106, 107, 201, 202, 203, 204, 205)
+      Desk     = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+    }
+  
+    $DescriptionPRO = [ordered]@{
+      Building = @('AV34', 'ELC4')
+      Room     = @(1, 100, 101, 102, 103, 104, 105, 106, 107, 210, 211, 212, 213)
+      Desk     = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+    }
+  
+    <#    $ComputerDescription  = [ordered]@{
+        Building = ''
+        Room     = ''
+        Desk     = ''
+    }#>
+
+      $DescriptionSwitch = $Department | Out-GridView -PassThru
+    $ComputerStat.Department = $DescriptionSwitch 
+    
+    Switch($DescriptionSwitch){
+      'MCDO' 
+      {
+        $DescriptionMCDO.Keys |ForEach-Object -Process {
+          $mylocation = $DescriptionMCDO.$_ | Out-GridView -Title $_ -PassThru
+          $ComputerStat.$_ = $mylocation
+          Write-Verbose -Message $ComputerStat
+        }
+      } # End MCDO
+
+      'PRO' 
+      {
+        $DescriptionPRO.Keys |ForEach-Object -Process {
+          $mylocation = $DescriptionPRO.$_ | Out-GridView -Title $_ -PassThru
+          $ComputerStat.$_ = $mylocation
+          Write-Verbose -Message $ComputerStat
+        }
+      } # End PRO
+
+      Default 
+      {
+        $DescriptionCA.Keys |ForEach-Object -Process {
+          $mylocation = $DescriptionCA.$_ | Out-GridView -Title $_ -PassThru
+          $ComputerStat.$_ = $mylocation
+          Write-Verbose -Message $ComputerStat
+        }
+      } # End CA
+    } #End Switch $r
+  } # End Function
+  
   function Open-Form
   {
     [CmdletBinding(HelpUri = 'https://github.com/KnarrStudio/Tools-DeskSideSupport',
@@ -45,7 +109,7 @@ Begin
     $okButton.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (75, 120)
     $okButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (75, 23)
     $okButton.Text = 'OK'
-    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $okButton.DialogResult = [Windows.Forms.DialogResult]::OK
     $form.AcceptButton = $okButton
     $form.Controls.Add($okButton)
   
@@ -53,7 +117,7 @@ Begin
     $cancelButton.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (150, 120)
     $cancelButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (75, 23)
     $cancelButton.Text = 'Cancel'
-    $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $cancelButton.DialogResult = [Windows.Forms.DialogResult]::Cancel
     $form.CancelButton = $cancelButton
     $form.Controls.Add($cancelButton)
   
@@ -75,7 +139,7 @@ Begin
     })
     $result = $form.ShowDialog()
   
-    if ($result -eq [System.Windows.Forms.DialogResult]::OK)
+    if ($result -eq [Windows.Forms.DialogResult]::OK)
     {
       $x = $textBox.Text
       $x
@@ -126,7 +190,7 @@ Begin
           {
             $SoftwareOutput += $InstalledSoftware |
             Where-Object -Property DisplayName -Match -Value $Item |
-            Select-Object -Property @{
+            Select-Object -ExpandProperty @{
               Name = 'Version'
               Exp  = {
                 $_.DisplayVersion
@@ -144,10 +208,6 @@ Begin
         $info = New-Object -TypeName PSObject -Property @{
           Exception = $e.Exception.Message
           Reason    = $e.CategoryInfo.Reason
-          Target    = $e.CategoryInfo.TargetName
-          Script    = $e.InvocationInfo.ScriptName
-          Line      = $e.InvocationInfo.ScriptLineNumber
-          Column    = $e.InvocationInfo.OffsetInLine
         }
       
         # output information. Post-process collected info, and log info (optional)
@@ -181,7 +241,7 @@ Begin
     }
   }
 
-  $MozillaVersion =  Get-InstalledSoftware -SoftwareName 'Mozilla Firefox'
+  $MozillaVersion = Get-InstalledSoftware -SoftwareName 'Mozilla Firefox'
   $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
 
   Write-Verbose -Message ('Latest Status: {0}' -f $LatestStatus)
@@ -190,56 +250,60 @@ Begin
   
   Write-Verbose -Message 'Setting up the ComputerStat hash'
   $ComputerStat = [ordered]@{
-    'ComputerName' = "$env:COMPUTERNAME"
-    'UserName'   = "$env:USERNAME"
-    'Date'       = "$(Get-Date)"
+    'ComputerName'  = "$env:COMPUTERNAME"
+    'UserName'      = "$env:USERNAME"
+    'Date'          = "$(Get-Date)"
     'Firefox Version' = $MozillaVersion
     'Adobe Version' = $AdobeVersion
-    'Building'   = ''
-    'Room'       = ''
-    'Desk'       = ''
-    'Color'      = ''
-    'Notes'      = ''
+    'Department'    = ''
+    'Building'      = ''
+    'Room'          = ''
+    'Desk'          = ''
+    'Phone'         = ''
+    'Notes'         = ''
   }
   
-  Write-Verbose -Message "Testing the Report Path: $FastCruiseReport"
-  if(-not (Test-Path $FastCruiseReport))
-  {
-    Write-Verbose -Message 'Test Failed.  Creating the Report now.'
-    $Null = New-Item -Path $FastCruiseReport -ItemType File
-  } 
+
 }
+
 Process
 {
+  $LatestStatus
   Do
   {
     $Ans = Read-Host -Prompt 'Is this correct? Y/N'
   }
   While(($Ans -ne 'N') -and ($Ans -ne 'Y')) 
 
-   # $PowerPointResult
-    #$AdobeResult
+  # $PowerPointResult
+  #$AdobeResult
 
 
   if($Ans -eq 'N')
   {
-    #[string]$Building = Read-Host -Prompt 'Building'
+    
+    Get-ComputerLocation 
 
-    $Building = $DescriptionLists.Building | Out-GridView -Title 'Building' -OutputMode Single
-    $ComputerStat['Building'] = $Building
+    <#
+        #[string]$Building = Read-Host -Prompt 'Building'
 
-    #[string]$Room = Read-Host -Prompt 'Room'
+        $Building = $DescriptionLists.Building | Out-GridView -Title 'Building' -OutputMode Single
+        $ComputerStat['Building'] = $Building
 
-    $Room = Get-Form  # $DescriptionLists.Room | Out-GridView -Title 'Room' -OutputMode Single
-    $ComputerStat['Room'] = $Room
+        #[string]$Room = Read-Host -Prompt 'Room'
 
-    #[string]$Desk = Read-Host -Prompt 'Desk'
+        $Room = Open-Form  # $DescriptionLists.Room | Out-GridView -Title 'Room' -OutputMode Single
+        $ComputerStat['Room'] = $Room
 
-    $Desk = $DescriptionLists.Desk | Out-GridView -Title 'Desk' -OutputMode Single
-    $ComputerStat['Desk'] = $Desk
+        #[string]$Desk = Read-Host -Prompt 'Desk'
 
-    [string]$Color = Read-Host -Prompt 'Color'
-    $ComputerStat['Color'] = $Color
+        $Desk = $DescriptionLists.Desk | Out-GridView -Title 'Desk' -OutputMode Single
+        $ComputerStat['Desk'] = $Desk
+
+        [string]$Color = Read-Host -Prompt 'Color'
+        $ComputerStat['Color'] = $Color
+    #>
+    
   }
   else
   {
@@ -247,12 +311,15 @@ Process
     $ComputerStat['Room'] = $($LatestStatus.Room)
     $ComputerStat['Desk'] = $($LatestStatus.Desk)
     $ComputerStat['Color'] = $($LatestStatus.Color)
-    $ComputerStat['MS Office Test'] = $PowerPointResult
-    $ComputerStat['Adobe Test'] = $AdobeResult
+    $ComputerStat['MS Office Test'] = $PowerPointResult = 7
+    $ComputerStat['Adobe Test'] = $AdobeResult = 8
   }
 }
 END
 {
+  $Phone = Open-Form -FormLabel 'Nearest Phone Number (or last 4)'
+  $ComputerStat['Phone'] = $Phone
+
   [string]$Notes = Read-Host -Prompt 'Notes'
   $ComputerStat['Notes'] = $Notes
 
@@ -263,35 +330,9 @@ END
   Export-Csv -Path $FastCruiseReport -NoTypeInformation -Append
   
   
-  Write-Verbose -Message 'Show Last 10 Cruisers'
+  Write-Verbose -Message 'Show Last Cruisers'
   Get-Content -Path $FastCruiseReport | Select-Object -Last 5
 }
 
 
-<#{<#$Credential = Get-Credential
-$Credential | Export-CliXml -Path .\Jaap.Cred
-$Credential = Import-CliXml -Path .\Jaap.Cred
-#>
 
-$MenuObject = 'System.Management.Automation.Host.ChoiceDescription'
-$red1 = New-Object -TypeName $MenuObject -ArgumentList '&Red1', 'Favorite color: Red1'
-$blue1 = New-Object -TypeName $MenuObject -ArgumentList '&Blue1', 'Favorite color: Blue1'
-$yellow1 = New-Object -TypeName $MenuObject -ArgumentList '&Yellow1', 'Favorite color: Yellow1'
-$red2 = New-Object -TypeName $MenuObject -ArgumentList '&Red2', 'Favorite color: Red2'
-$blue2 = New-Object -TypeName $MenuObject -ArgumentList '&Blue2', 'Favorite color: Blue2'
-$yellow2 = New-Object -TypeName $MenuObject -ArgumentList '&Yellow2', 'Favorite color: Yellow2'
-$red3 = New-Object -TypeName $MenuObject -ArgumentList '&Red3', 'Favorite color: Red3'
-$blue3 = New-Object -TypeName $MenuObject -ArgumentList '&Blue3', 'Favorite color: Blue3'
-$yellow3 = New-Object -TypeName $MenuObject -ArgumentList '&Yellow3', 'Favorite color: Yellow3'
-$red4 = New-Object -TypeName $MenuObject -ArgumentList '&Red4', 'Favorite color: Red4'
-$blue4 = New-Object -TypeName $MenuObject -ArgumentList '&Blue4', 'Favorite color: Blue4'
-$yellow4 = New-Object -TypeName $MenuObject -ArgumentList '&Yellow4', 'Favorite color: Yellow4'
- 
-$options = [System.Management.Automation.Host.ChoiceDescription[]]($red1, $blue1, $yellow1,$red2, $blue2, $yellow2,$red3, $blue3, $yellow3,$red4, $blue4, $yellow4)
-
-
-$title = 'Favorite color'
-$message = 'What is your favorite color?'
-$result = $host.ui.PromptForChoice($title, $message, $options, 0)
-
-Write-Output $result}#>
