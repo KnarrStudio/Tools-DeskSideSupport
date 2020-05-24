@@ -1,5 +1,8 @@
+#requires -Version 3.0
 #requires -runasadministrator
-# $MobikeyCertsPath = '\\Networkshare\mobikey\certs'
+
+$MobikeyCertsPath = '\\Networkshare\mobikey\certs'
+
 function Repair-MobiKey 
 {
   <#
