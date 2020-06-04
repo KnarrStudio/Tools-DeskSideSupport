@@ -171,6 +171,33 @@ function Start-FastCruise
                   214
                 )
               }
+              AV44 = @{
+                Room = @(
+                  1
+                )
+              }
+              AV45 = @{
+                Room = @(
+                  1
+                )
+              }
+              AV46 = @{
+                Room = @(
+                  1
+                )
+              }
+              AV47 = @{
+                Room = @(
+                  1, 
+                  2
+                )
+              }
+              AV48 = @{
+                Room = @(
+                  1, 
+                  2
+                )
+              }
             }
           }
           PRO  = @{
