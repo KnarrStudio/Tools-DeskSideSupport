@@ -18,9 +18,9 @@ function Start-FastCruise
   [CmdletBinding()]
   param
   (
-    [Parameter(Mandatory=$false, Position=0)]
+    [Parameter(Mandatory = $false, Position = 0)]
     [Object]
-    $FastCruiseReport = ("$env:HOMEDRIVE\Temp\Reports\FastCruise_{0}.csv" -f $(Get-Date -Format yyyy-MMMM))
+    $FastCruiseReport = 'C:\temp\Reports\FastCruise_2020-May.csv' #("$env:HOMEDRIVE\Temp\Reports\FastCruise_{0}.csv" -f $(Get-Date -Format yyyy-MMMM))
   )
    
   Begin
@@ -311,6 +311,18 @@ function Start-FastCruise
         $x
       }
     }
+
+    function Get-McAfeeVersion { 
+      [CmdletBinding()]
+      param ([Object]$Computer) 
+      $ProductVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\DesktopProtection').GetValue('szProductVer') 
+      $EngineVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('EngineVersionMajor') 
+      $DatVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('AVDatVersion') 
+ 
+      $ComputerStat['McAfee Product version'] = $ProductVer
+      $ComputerStat['McAfee Engine version'] = $EngineVer
+      $ComputerStat['McAfee Dat version'] = $DatVer
+    }
     
     Function Get-InstalledSoftware
     {
@@ -395,7 +407,7 @@ function Start-FastCruise
           }
           'UninstallString'
           {
-            
+
           }
           default  
           {
@@ -407,8 +419,10 @@ function Start-FastCruise
       }
     }
     
+    $McAfee = Get-InstalledSoftware -SoftwareName 'McAfee'
     $MozillaVersion = Get-InstalledSoftware -SoftwareName 'Mozilla Firefox'
     $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
+    $LatestWSUSupdate = (New-Object -ComObject 'Microsoft.Update.AutoUpdate'). Results 
     
     Write-Verbose -Message ('Latest Status: {0}' -f $LatestStatus)
     #$LatestStatus | Format-List -Property ComputerName, Building, Room, @{Label='Desk A to Z from left';Expression={$_.Desk}},Notes
@@ -421,6 +435,11 @@ function Start-FastCruise
       'Date'          = "$(Get-Date)"
       'Firefox Version' = $MozillaVersion
       'Adobe Version' = $AdobeVersion
+      'McAfee Product version' = ''
+      'McAfee Engine version' = ''
+      'McAfee Dat version' = ''
+      'WSUS Search Success' = ''
+      'WSUS Install Success' = ''
       'Department'    = ''
       'Building'      = ''
       'Room'          = ''
@@ -468,6 +487,19 @@ function Start-FastCruise
   
   END
   {
+    
+    if($Mcafee){Get-McAfeeVersion -Computer $env:COMPUTERNAME}
+    else{
+      $ComputerStat['McAfee Product version'] = 'Not Found'
+      $ComputerStat['McAfee Engine version'] = 'Not Found'
+      $ComputerStat['McAfee Dat version'] = 'Not Found'
+    }
+
+    
+    $ComputerStat['WSUS Search Success'] = $LatestWSUSupdate.LastSearchSuccessDate
+    $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
+
+    
     $Phone = Open-Form -FormLabel 'Nearest Phone Number (or last 4)'
     $ComputerStat['Phone'] = $Phone
     
@@ -482,12 +514,18 @@ function Start-FastCruise
     
     
     Write-Verbose -Message 'Show Last Cruisers'
-    Get-Content -Path $FastCruiseReport | Select-Object -Last 5
+    Get-Content -Path $FastCruiseReport |
+    Select-Object -Last 5 |
+    Format-Table
   }
 }
 
 Start-FastCruise -Verbose
-$r = import-csv .\Reports\FastCruise_2020-May.csv
-$r | sort Department,Building | ForEach-Object {('{0} = OSD-OMC-{1}-{2}-{3}{4}' -f $_.ComputerName,$_.Department,$_.Building,$_.Room,$_.Desk)}
+$r = Import-Csv -Path 'C:\temp\Reports\FastCruise_2020-May.csv'
+$r |
+Sort-Object -Property Department, Building |
+ForEach-Object -Process {
+('{0} = OSD-OMC-{1}-{2}-{3}{4}' -f $_.ComputerName, $_.Department, $_.Building, $_.Room, $_.Desk)
+}
 
 
