@@ -63,11 +63,11 @@ function Start-FastCruise
         $Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       )
       
-      $Location = @{
-        Department = @{
-          MCDO = @{
-            Building = @{
-              AV29  = @{
+      $Location = [ordered]@{
+        Department = [ordered]@{
+          MCDO = [ordered]@{
+            Building = [ordered]@{
+              AV29  = [ordered]@{
                 Room = @(
                   8, 
                   9, 
@@ -84,7 +84,7 @@ function Start-FastCruise
                   20
                 )
               }
-              AV34  = @{
+              AV34  = [ordered]@{
                 Room = @(
                   1, 
                   6, 
@@ -97,7 +97,7 @@ function Start-FastCruise
                   205
                 )
               }
-              ELC3  = @{
+              ELC3  = [ordered]@{
                 Room = @(
                   100, 
                   101, 
@@ -109,41 +109,41 @@ function Start-FastCruise
                   107
                 )
               }
-              ELC31 = @{
+              ELC31 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC32 = @{
+              ELC32 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC33 = @{
+              ELC33 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC34 = @{
+              ELC34 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC35 = @{
+              ELC35 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC36 = @{
+              ELC36 = [ordered]@{
                 Room = @(
                   1
                 )
               }
             }
           }
-          CA   = @{
-            Building = @{
-              AV29 = @{
+          CA   = [ordered]@{
+            Building = [ordered]@{
+              AV29 = [ordered]@{
                 Room = @(
                   1, 
                   2, 
@@ -162,7 +162,7 @@ function Start-FastCruise
                   30
                 )
               }
-              AV34 = @{
+              AV34 = [ordered]@{
                 Room = @(
                   1, 
                   2, 
@@ -171,28 +171,28 @@ function Start-FastCruise
                   214
                 )
               }
-              AV44 = @{
+              AV44 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV45 = @{
+              AV45 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV46 = @{
+              AV46 = [ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV47 = @{
+              AV47 = [ordered]@{
                 Room = @(
                   1, 
                   2
                 )
               }
-              AV48 = @{
+              AV48 = [ordered]@{
                 Room = @(
                   1, 
                   2
@@ -200,9 +200,9 @@ function Start-FastCruise
               }
             }
           }
-          PRO  = @{
-            Building = @{
-              AV34 = @{
+          PRO  = [ordered]@{
+            Building = [ordered]@{
+              AV34 = [ordered]@{
                 Room = @(
                   210, 
                   211, 
@@ -210,7 +210,7 @@ function Start-FastCruise
                   213
                 )
               }
-              ELC4 = @{
+              ELC4 = [ordered]@{
                 Room = @(
                   1, 
                   100, 
@@ -225,9 +225,9 @@ function Start-FastCruise
               }
             }
           }
-          TJ   = @{
-            Building = @{
-              AV34 = @{
+          TJ   = [ordered]@{
+            Building = [ordered]@{
+              AV34 = [ordered]@{
                 Room = @(
                   2, 
                   3, 
@@ -235,7 +235,7 @@ function Start-FastCruise
                   11
                 )
               }
-              ELC2 = @{
+              ELC2 = [ordered]@{
                 Room = @(
                   1
                 )
@@ -244,7 +244,6 @@ function Start-FastCruise
           }
         }
       }
-      
       
       [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -PassThru
       [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -PassThru
