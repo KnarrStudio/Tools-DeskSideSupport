@@ -1,33 +1,58 @@
 ﻿#requires -Version 3.0
+
+#Edit the splats to customize the script
+$FastCruiseSplat = @{
+  FastCruiseReportPath = 'C:\temp\Reports'
+  FastCruiseFile       = 'FastCruise.csv' 
+  Verbose              = $true
+}
+$PDFApplicationTestSplat = @{
+  TestFile    = 'O:\OMC-S\IT\Scripts\FastCruise\FastCruiseTestFile.pdf'
+  TestProgram = "${env:ProgramFiles(x86)}\Adobe\Acrobat 2015\Acrobat\Acrobat.exe"
+  ProcessName = 'Acrobat'
+}
+$PowerPointApplicationTestSplat = @{
+  TestFile    = 'O:\OMC-S\IT\Scripts\FastCruise\FastCruiseTestFile.pptx'
+  TestProgram = "${env:ProgramFiles(x86)}\Microsoft Office\Office16\POWERPNT.EXE"
+  ProcessName = 'POWERPNT'
+}
+<#$WordpadApplicationTestSplat = @{
+    TestFile    = "$env:windir\DtcInstall.log"
+    TestProgram = "$env:ProgramFiles\Windows NT\Accessories\wordpad.exe"
+    ProcessName = 'wordpad'
+    }
+#>
+
 function Start-FastCruise
 {
-  <#
-      .SYNOPSIS
-      Short Description
-      .DESCRIPTION
-      Detailed Description
-      .EXAMPLE
-      Start-FastCruise
-      explains how to use the command
-      can be multiple lines
-      .EXAMPLE
-      Start-FastCruise
-      another example
-      can have as many examples as you like
-  #>
-  [CmdletBinding()]
   param
   (
-    [Parameter(Mandatory = $false, Position = 0)]
-    [Object]
-    $FastCruiseReport = 'C:\temp\Reports\FastCruise_2020-May.csv' #("$env:HOMEDRIVE\Temp\Reports\FastCruise_{0}.csv" -f $(Get-Date -Format yyyy-MMMM))
+    [Parameter(Mandatory, Position = 0)]
+    [String]$FastCruiseReportPath,
+    [Parameter(Mandatory, Position = 0)]
+    [ValidateScript({
+          If($_ -match '.csv')
+          {
+            $true
+          }
+          Else
+          {
+            Throw 'Input file needs to be CSV'
+          }
+    })][String]$FastCruiseFile
+
   )
    
   Begin
   {
-    
+    Write-Verbose -Message 'Setup Variables'
+    $Ans = 'z'
+        
+    Write-Verbose -Message 'Setup Report' 
     $YearMonth = Get-Date -Format yyyy-MMMM
-    # $FastCruiseReport = ("$env:HOMEDRIVE\Temp\Reports\FastCruise_{0}.csv" -f $YearMonth)
+    $FastCruiseFile = [String]$($FastCruiseFile.Replace('.',"_$YearMonth."))
+    $FastCruiseReport = ('{0}\{1}' -f $FastCruiseReportPath, $FastCruiseFile)
+    Write-Verbose -Message ('{0}' -f $FastCruiseReport) 
     
     Write-Verbose -Message ('Testing the Report Path: {0}' -f $FastCruiseReport)
     if(-not (Test-Path -Path $FastCruiseReport))
@@ -35,39 +60,112 @@ function Start-FastCruise
       Write-Verbose -Message 'Test Failed.  Creating the Report now.'
       $null = New-Item -Path $FastCruiseReport -ItemType File
     } 
-    
-    $Ans = 'z'
-    $Orange = 'Blue'
-    $CompImport = Import-Csv -Path $FastCruiseReport
-    
-    # Select last status of system.
-    Write-Verbose -Message "Getting last status of workstation: $env:COMPUTERNAME"
-    $LatestStatus = $CompImport |
-    Where-Object -FilterScript {
-      $PSItem.Color -match $Orange
-    } |
-    Select-Object -Last 1 
+    function Start-ApplicationTest
+    {
+      param
+      (
+        [Parameter(Mandatory, Position = 0)]
+        [string]$FunctionTest,
+        [Parameter(Mandatory, Position = 1)]
+        [string]$TestFile,
+        [Parameter(Mandatory, Position = 2)]
+        [string]$TestProgram,
+        [Parameter(Mandatory, Position = 3)]
+        [string]$ProcessName
+      )
+      $DescriptionLists = [Ordered]@{
+        FunctionResult = 'Good', 'Failed'
+      }
+
+      if($FunctionTest -eq 'Y')
+      {
+        try
+        {
+          Write-Verbose -Message ('Attempting to open {0} with {1}' -f $TestFile, $ProcessName)
+          Start-Process -FilePath $TestProgram -ArgumentList $TestFile
+
+          Write-Host -Object ('The Fast Cruise Script will continue after {0} has been closed.' -f $ProcessName) -BackgroundColor Red -ForegroundColor Yellow
+          Write-Verbose -Message ('Wait-Process: {0}' -f $ProcessName)
+          Wait-Process -Name $ProcessName
+        
+          $TestResult = $DescriptionLists.FunctionResult | Out-GridView -Title $ProcessName -OutputMode Single
+        }
+        Catch
+        {
+          Write-Verbose -Message 'TestResult: Failed'
+          $TestResult = $DescriptionLists.FunctionResult[1]
+        }
+      }
+      else
+      {
+        Write-Verbose -Message 'TestResult: Bypassed'
+        $TestResult = 'Bypassed'
+      }
+      Return $TestResult
+    }
+     
+    function Get-LastComputerStatus
+    {
+      <#
+          .SYNOPSIS
+          Return the last status of system based on what was in the current Fast Cruise Report
+      #>
+      param
+      (
+        [Parameter(Mandatory, Position = 0)]
+        [String]$FastCruiseReport
+      )
+  
+      Write-Verbose -Message 'Importing the Fast Cruise Report'
+      $CompImport = Import-Csv -Path $FastCruiseReport
+  
+      # Select last status of system.
+      Write-Verbose -Message "Getting last status of workstation: $env:COMPUTERNAME"
+      
+      try
+      {
+        $LatestStatus = $CompImport |
+        Where-Object -FilterScript {
+          $PSItem.ComputerName -eq $env:COMPUTERNAME
+        } |
+        Select-Object -Last 1 
+        if($LatestStatus -eq $null)
+        {
+          Write-Output -InputObject 'Unable to find an existing record for this system.'
+          $Ans = 'NoHistory'
+        }
+      }
+      Catch
+      {
+        # get error record
+        [Management.Automation.ErrorRecord]$e = $_
+
+        # retrieve information about runtime error
+        $info = New-Object -TypeName PSObject -Property @{
+          Exception = $e.Exception.Message
+        }
+      
+        # output information. Post-process collected info, and log info (optional)
+        $info
+      }
+      Return $LatestStatus
+    }
     
     function Script:Get-Location
     {
       <#
           .SYNOPSIS
-          Short Description
-          .DESCRIPTION
-          Detailed Description
+          Get-Location of workstation
       #>
       [CmdletBinding()]
-      param
-      (
-        [Parameter(Mandatory = $false, Position = 0)]
-        $Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
-      )
       
-      $Location = @{
-        Department = @{
-          MCDO = @{
-            Building = @{
-              AV29  = @{
+      [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+      
+      $Location = [Ordered]@{
+        Department = [Ordered]@{
+          MCDO = [Ordered]@{
+            Building = [Ordered]@{
+              AV29  = [Ordered]@{
                 Room = @(
                   8, 
                   9, 
@@ -84,7 +182,7 @@ function Start-FastCruise
                   20
                 )
               }
-              AV34  = @{
+              AV34  = [Ordered]@{
                 Room = @(
                   1, 
                   6, 
@@ -97,7 +195,7 @@ function Start-FastCruise
                   205
                 )
               }
-              ELC3  = @{
+              ELC3  = [Ordered]@{
                 Room = @(
                   100, 
                   101, 
@@ -109,41 +207,41 @@ function Start-FastCruise
                   107
                 )
               }
-              ELC31 = @{
+              ELC31 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC32 = @{
+              ELC32 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC33 = @{
+              ELC33 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC34 = @{
+              ELC34 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC35 = @{
+              ELC35 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              ELC36 = @{
+              ELC36 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
             }
           }
-          CA   = @{
-            Building = @{
-              AV29 = @{
+          CA   = [Ordered]@{
+            Building = [Ordered]@{
+              AV29 = [Ordered]@{
                 Room = @(
                   1, 
                   2, 
@@ -162,7 +260,7 @@ function Start-FastCruise
                   30
                 )
               }
-              AV34 = @{
+              AV34 = [Ordered]@{
                 Room = @(
                   1, 
                   2, 
@@ -171,28 +269,28 @@ function Start-FastCruise
                   214
                 )
               }
-              AV44 = @{
+              AV44 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV45 = @{
+              AV45 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV46 = @{
+              AV46 = [Ordered]@{
                 Room = @(
                   1
                 )
               }
-              AV47 = @{
+              AV47 = [Ordered]@{
                 Room = @(
                   1, 
                   2
                 )
               }
-              AV48 = @{
+              AV48 = [Ordered]@{
                 Room = @(
                   1, 
                   2
@@ -200,9 +298,9 @@ function Start-FastCruise
               }
             }
           }
-          PRO  = @{
-            Building = @{
-              AV34 = @{
+          PRO  = [Ordered]@{
+            Building = [Ordered]@{
+              AV34 = [Ordered]@{
                 Room = @(
                   210, 
                   211, 
@@ -210,7 +308,7 @@ function Start-FastCruise
                   213
                 )
               }
-              ELC4 = @{
+              ELC4 = [Ordered]@{
                 Room = @(
                   1, 
                   100, 
@@ -225,9 +323,9 @@ function Start-FastCruise
               }
             }
           }
-          TJ   = @{
-            Building = @{
-              AV34 = @{
+          TJ   = [Ordered]@{
+            Building = [Ordered]@{
+              AV34 = [Ordered]@{
                 Room = @(
                   2, 
                   3, 
@@ -235,7 +333,7 @@ function Start-FastCruise
                   11
                 )
               }
-              ELC2 = @{
+              ELC2 = [Ordered]@{
                 Room = @(
                   1
                 )
@@ -245,12 +343,11 @@ function Start-FastCruise
         }
       }
       
-      
-      [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -PassThru
-      [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -PassThru
-      [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -PassThru
-      [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -PassThru
-    } # End Function
+      [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
+      [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
+      [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
+      [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
+    } # End Location-Function
     
     function Open-Form
     {
@@ -312,9 +409,9 @@ function Start-FastCruise
       }
     }
 
-    function Get-McAfeeVersion { 
-      [CmdletBinding()]
-      param ([Object]$Computer) 
+    function Get-McAfeeVersion 
+    { 
+      param ([Parameter(Mandatory)][Object]$Computer) 
       $ProductVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\DesktopProtection').GetValue('szProductVer') 
       $EngineVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('EngineVersionMajor') 
       $DatVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('AVDatVersion') 
@@ -326,10 +423,10 @@ function Start-FastCruise
     
     Function Get-InstalledSoftware
     {
-      [cmdletbinding(DefaultParameterSetName = 'SortList',SupportsPaging = $true)]
+      [cmdletbinding(DefaultParameterSetName = 'SortList',SupportsPaging)]
       Param(
         
-        [Parameter(Mandatory = $true,HelpMessage = 'At least part of the software name to test', Position = 0,ParameterSetName = 'SoftwareName')]
+        [Parameter(Mandatory,HelpMessage = 'At least part of the software name to test', Position = 0,ParameterSetName = 'SoftwareName')]
         [String[]]$SoftwareName,
         [Parameter(ParameterSetName = 'SortList')]
         [Parameter(ParameterSetName = 'SoftwareName')]
@@ -419,50 +516,49 @@ function Start-FastCruise
       }
     }
     
-    $McAfee = Get-InstalledSoftware -SoftwareName 'McAfee'
-    $MozillaVersion = Get-InstalledSoftware -SoftwareName 'Mozilla Firefox'
+
     $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
+    <#bookmark Software Versions #>
+    $MozillaVersion = (Get-InstalledSoftware -SoftwareName 'Mozilla Firefox').version
+    $McAfeeVersion  = (Get-InstalledSoftware -SoftwareName 'McAfee Agent').version
+
+    <#bookmark Windows Updates #>    
     $LatestWSUSupdate = (New-Object -ComObject 'Microsoft.Update.AutoUpdate'). Results 
     
-    Write-Verbose -Message ('Latest Status: {0}' -f $LatestStatus)
-    #$LatestStatus | Format-List -Property ComputerName, Building, Room, @{Label='Desk A to Z from left';Expression={$_.Desk}},Notes
-    $LatestStatus | Format-List -Property ComputerName, Building, Room, Desk, Notes
     
     Write-Verbose -Message 'Setting up the ComputerStat hash'
     $ComputerStat = [ordered]@{
-      'ComputerName'  = "$env:COMPUTERNAME"
-      'UserName'      = "$env:USERNAME"
-      'Date'          = "$(Get-Date)"
-      'Firefox Version' = $MozillaVersion
-      'Adobe Version' = $AdobeVersion
+      'ComputerName'         = "$env:COMPUTERNAME"
+      'UserName'             = "$env:USERNAME"
+      'Date'                 = "$(Get-Date)"
+      'Firefox Version'      = $MozillaVersion
+      'Adobe Version'        = $AdobeVersion
       'McAfee Product version' = ''
       'McAfee Engine version' = ''
-      'McAfee Dat version' = ''
-      'WSUS Search Success' = ''
-      'WSUS Install Success' = ''
-      'Department'    = ''
-      'Building'      = ''
-      'Room'          = ''
-      'Desk'          = ''
-      'Phone'         = ''
-      'Notes'         = ''
+      'McAfee Dat version'   = ''
+      'WSUS Search Success'  = $LatestWSUSupdate.LastSearchSuccessDate
+      'WSUS Install Success' = $LatestWSUSupdate.LastInstallationSuccessDate
+      'Department'           = ''
+      'Building'             = ''
+      'Room'                 = ''
+      'Desk'                 = ''
     }
-    
-    
-  }
+  } #End BEGIN region
   
   Process
   {
-    $LatestStatus
+   
+    Write-Verbose -Message 'Getting Last Status recorded'
+    $LatestStatus = (Get-LastComputerStatus -FastCruiseReport $FastCruiseReport) 
+    Write-Output -InputObject 'Latest Status'
+    $LatestStatus | Select-Object -Property Computername, Department, Building, Room, Desk
+
+    # Location Varification
     Do
     {
-      $Ans = Read-Host -Prompt 'Is this correct? Y/N'
+      $Ans = Read-Host -Prompt 'Is this information correct? Y/N'
     }
     While(($Ans -ne 'N') -and ($Ans -ne 'Y')) 
-    
-    # $PowerPointResult
-    # $AdobeResult
-    
     
     if($Ans -eq 'N')
     {
@@ -479,33 +575,49 @@ function Start-FastCruise
       $ComputerStat['Building'] = $($LatestStatus.Building)
       $ComputerStat['Room'] = $($LatestStatus.Room)
       $ComputerStat['Desk'] = $($LatestStatus.Desk)
-      $ComputerStat['Color'] = $($LatestStatus.Color)
-      $ComputerStat['MS Office Test'] = $PowerPointResult = 7
-      $ComputerStat['Adobe Test'] = $AdobeResult = 8
     }
-  }
+    
+    <#bookmark Application Test #> 
+    Do
+    {
+      $FunctionTest = Read-Host -Prompt 'Perform Function Tests (MS Office and Adobe) Y/N'
+    }
+    While(($FunctionTest -ne 'N') -and ($FunctionTest -ne 'Y')) 
+    # Start-ApplicationTest -FunctionTest $FunctionTest @WordpadApplicationTestSplat -Verbose
+    
+    $AdobeResult = Start-ApplicationTest -FunctionTest $FunctionTest @PDFApplicationTestSplat
+    $PowerPointResult = Start-ApplicationTest -FunctionTest $FunctionTest @PowerPointApplicationTestSplat
+    
+    $ComputerStat['MS Office Test'] = $PowerPointResult
+    $ComputerStat['Adobe Test'] = $AdobeResult
+    
+    <#bookmark Windows Update Status #> 
+    $ComputerStat['WSUS Search Success'] = $LatestWSUSupdate.LastSearchSuccessDate
+    $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
+
+    <#bookmark Local phone number #> 
+    $Phone = Open-Form -FormLabel 'Nearest Phone Number (or last 4)'
+    $ComputerStat['Phone'] = $Phone
+    
+    <#bookmark Fast cruise notes #>
+    [string]$Notes = Open-Form -FormLabel 'Notes'
+    $ComputerStat['Notes'] = $Notes
+  } #End PROCESS region
   
   END
   {
     
-    if($Mcafee){Get-McAfeeVersion -Computer $env:COMPUTERNAME}
-    else{
+    if($McAfeeVersion)
+    {
+      Get-McAfeeVersion -Computer $env:COMPUTERNAME
+    }
+    else
+    {
       $ComputerStat['McAfee Product version'] = 'Not Found'
       $ComputerStat['McAfee Engine version'] = 'Not Found'
       $ComputerStat['McAfee Dat version'] = 'Not Found'
     }
 
-    
-    $ComputerStat['WSUS Search Success'] = $LatestWSUSupdate.LastSearchSuccessDate
-    $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
-
-    
-    $Phone = Open-Form -FormLabel 'Nearest Phone Number (or last 4)'
-    $ComputerStat['Phone'] = $Phone
-    
-    [string]$Notes = Read-Host -Prompt 'Notes'
-    $ComputerStat['Notes'] = $Notes
-    
     $ComputerStat  |
     ForEach-Object -Process {
       [pscustomobject]$_
@@ -513,19 +625,18 @@ function Start-FastCruise
     Export-Csv -Path $FastCruiseReport -NoTypeInformation -Append
     
     
-    Write-Verbose -Message 'Show Last Cruisers'
-    Get-Content -Path $FastCruiseReport |
-    Select-Object -Last 5 |
+    Write-Output -InputObject 'The information recorded'
+    $ComputerStat | Format-Table
+
+    <#bookmark Fast cruising shipmates #>
+    Write-Output -InputObject 'Fast Cruise shipmates'
+    Import-Csv -Path $FastCruiseReport |
+    Select-Object -Last 4 -Property Date, Username, Building, Room, Phone |
     Format-Table
-  }
+  } #End END region
 }
 
-Start-FastCruise -Verbose
-$r = Import-Csv -Path 'C:\temp\Reports\FastCruise_2020-May.csv'
-$r |
-Sort-Object -Property Department, Building |
-ForEach-Object -Process {
-('{0} = OSD-OMC-{1}-{2}-{3}{4}' -f $_.ComputerName, $_.Department, $_.Building, $_.Room, $_.Desk)
-}
+Clear-Host #Clears the console.  This shouldn't be needed once the script can be run directly from PS
+Start-FastCruise @FastCruiseSplat # Make sure you have updated and completed the "Splats" at the top of the script
 
 
