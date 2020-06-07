@@ -7,12 +7,12 @@ $FastCruiseSplat = @{
   Verbose              = $true
 }
 $PDFApplicationTestSplat = @{
-  TestFile    = 'O:\OMC-S\IT\Scripts\FastCruise\FastCruiseTestFile.pdf'
+  TestFile    = '\\FastCruise\FastCruiseTestFile.pdf'
   TestProgram = "${env:ProgramFiles(x86)}\Adobe\Acrobat 2015\Acrobat\Acrobat.exe"
   ProcessName = 'Acrobat'
 }
 $PowerPointApplicationTestSplat = @{
-  TestFile    = 'O:\OMC-S\IT\Scripts\FastCruise\FastCruiseTestFile.pptx'
+  TestFile    = '\\FastCruise\FastCruiseTestFile.pptx'
   TestProgram = "${env:ProgramFiles(x86)}\Microsoft Office\Office16\POWERPNT.EXE"
   ProcessName = 'POWERPNT'
 }
@@ -40,18 +40,18 @@ function Start-FastCruise
             Throw 'Input file needs to be CSV'
           }
     })][String]$FastCruiseFile
-
   )
    
   Begin
   {
     Write-Verbose -Message 'Setup Variables'
-    $Ans = 'z'
+    #$LocationVerification = $null
         
     Write-Verbose -Message 'Setup Report' 
     $YearMonth = Get-Date -Format yyyy-MMMM
-    $FastCruiseFile = [String]$($FastCruiseFile.Replace('.',"_$YearMonth."))
-    $FastCruiseReport = ('{0}\{1}' -f $FastCruiseReportPath, $FastCruiseFile)
+    $FastCruiseFile = [String]$($FastCruiseFile.Replace('.',('_{0}.' -f $YearMonth)))
+    #$FastCruiseReport = ('{0}\{1}' -f $FastCruiseReportPath, $FastCruiseFile)
+    $FastCruiseReport = "C:\temp\Reports\FastCruise_Test.csv"
     Write-Verbose -Message ('{0}' -f $FastCruiseReport) 
     
     Write-Verbose -Message ('Testing the Report Path: {0}' -f $FastCruiseReport)
@@ -76,8 +76,8 @@ function Start-FastCruise
       $DescriptionLists = [Ordered]@{
         FunctionResult = 'Good', 'Failed'
       }
-
-      if($FunctionTest -eq 'Y')
+      Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
+      if($FunctionTest -eq 'Yes')
       {
         try
         {
@@ -116,6 +116,7 @@ function Start-FastCruise
         [String]$FastCruiseReport
       )
   
+      Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
       Write-Verbose -Message 'Importing the Fast Cruise Report'
       $CompImport = Import-Csv -Path $FastCruiseReport
   
@@ -158,7 +159,7 @@ function Start-FastCruise
           Get-Location of workstation
       #>
       [CmdletBinding()]
-      
+     
       [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
       $Location = [Ordered]@{
@@ -349,69 +350,38 @@ function Start-FastCruise
       [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
     } # End Location-Function
     
-    function Open-Form
+    function Show-VbForm
     {
-      [CmdletBinding(HelpUri = 'https://github.com/KnarrStudio/Tools-DeskSideSupport',
-      ConfirmImpact = 'Medium')]
-      [OutputType([String])]
-      Param
-      (
-        # Param1 help description
-        [Parameter(Mandatory,HelpMessage = 'The data label', Position = 0)]
-        [string]  $FormLabel
+      [cmdletbinding(DefaultParameterSetName = 'Message')]
+      param(
+        [Parameter(Mandatory=$false,Position = 0,ParameterSetName = 'Message')]
+        [Switch]$YesNoBox,
+        [Parameter(Mandatory=$False,Position = 0,ParameterSetName = 'Input')]
+        [Switch]$InputBox,
+        [Parameter(Mandatory=$true,Position = 1)]
+        [string]$Message,
+        [Parameter(Mandatory=$false,Position = 2)]
+        [string]$TitleBar = 'Fast Cruise'
+    
       )
-      Add-Type -AssemblyName System.Windows.Forms
-      Add-Type -AssemblyName System.Drawing
+      Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
       
-      $form = New-Object -TypeName System.Windows.Forms.Form
-      $form.Text = 'Computer Description'
-      $form.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (300, 200)
-      $form.StartPosition = 'CenterScreen'
+      Add-Type -AssemblyName Microsoft.VisualBasic
       
-      $okButton = New-Object -TypeName System.Windows.Forms.Button
-      $okButton.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (75, 120)
-      $okButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (75, 23)
-      $okButton.Text = 'OK'
-      $okButton.DialogResult = [Windows.Forms.DialogResult]::OK
-      $form.AcceptButton = $okButton
-      $form.Controls.Add($okButton)
-      
-      $cancelButton = New-Object -TypeName System.Windows.Forms.Button
-      $cancelButton.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (150, 120)
-      $cancelButton.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (75, 23)
-      $cancelButton.Text = 'Cancel'
-      $cancelButton.DialogResult = [Windows.Forms.DialogResult]::Cancel
-      $form.CancelButton = $cancelButton
-      $form.Controls.Add($cancelButton)
-      
-      $label = New-Object -TypeName System.Windows.Forms.Label
-      $label.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (10, 20)
-      $label.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (280, 20)
-      $label.Text = $FormLabel
-      $form.Controls.Add($label)
-      
-      $textBox = New-Object -TypeName System.Windows.Forms.TextBox
-      $textBox.Location = New-Object -TypeName System.Drawing.Point -ArgumentList (10, 40)
-      $textBox.Size = New-Object -TypeName System.Drawing.Size -ArgumentList (260, 20)
-      $form.Controls.Add($textBox)
-      
-      $form.Topmost = $true
-      
-      $form.Add_Shown({
-          $textBox.Select()
-      })
-      $result = $form.ShowDialog()
-      
-      if ($result -eq [Windows.Forms.DialogResult]::OK)
-      {
-        $x = $textBox.Text
-        $x
+      if($InputBox){
+        $Response = [Microsoft.VisualBasic.Interaction]::InputBox($Message, $TitleBar)
       }
+      if($YesNoBox){  
+        $Response = [Microsoft.VisualBasic.Interaction]::MsgBox($Message, 'YesNo,SystemModal,MsgBoxSetForeground', $TitleBar)
+      }
+      Return $Response
     }
+    
 
     function Get-McAfeeVersion 
     { 
       param ([Parameter(Mandatory)][Object]$Computer) 
+      Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
       $ProductVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\DesktopProtection').GetValue('szProductVer') 
       $EngineVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('EngineVersionMajor') 
       $DatVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('AVDatVersion') 
@@ -432,10 +402,11 @@ function Start-FastCruise
         [Parameter(ParameterSetName = 'SoftwareName')]
         [ValidateSet('InstallDate', 'DisplayName','DisplayVersion')] 
         [String]$SortList = 'InstallDate'
-        
       )
       
       Begin { 
+        Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
+      
         $SoftwareOutput = @()
         $InstalledSoftware = (Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*)
       }
@@ -516,9 +487,8 @@ function Start-FastCruise
       }
     }
     
-
-    $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
     <#bookmark Software Versions #>
+    $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
     $MozillaVersion = (Get-InstalledSoftware -SoftwareName 'Mozilla Firefox').version
     $McAfeeVersion  = (Get-InstalledSoftware -SoftwareName 'McAfee Agent').version
 
@@ -550,20 +520,35 @@ function Start-FastCruise
    
     Write-Verbose -Message 'Getting Last Status recorded'
     $LatestStatus = (Get-LastComputerStatus -FastCruiseReport $FastCruiseReport) 
-    Write-Output -InputObject 'Latest Status'
-    $LatestStatus | Select-Object -Property Computername, Department, Building, Room, Desk
+    #Write-Output -InputObject 'Latest Status'
+    #$LatestStatus | Select-Object -Property Computername, Department, Building, Room, Desk
 
-    # Location Varification
-    Do
-    {
-      $Ans = Read-Host -Prompt 'Is this information correct? Y/N'
-    }
-    While(($Ans -ne 'N') -and ($Ans -ne 'Y')) 
+    <#bookmark Location Verification #>
+    $ComputerLocation = (@'
+
+ComputerName: (Assest Tag)
+- {0}
+
+Department:
+- {1}
+
+Building:
+- {2}
+
+Room:
+- {3}
+
+Desk:
+- {4}
+          
+'@ -f $LatestStatus.ComputerName, $LatestStatus.Department, $LatestStatus.Building, $LatestStatus.Room, $LatestStatus.Desk)
+
+    $LocationVerification = Show-VbForm -YesNoBox -Message $ComputerLocation
     
-    if($Ans -eq 'N')
+    if($LocationVerification -eq 'No')
     {
       Get-Location
-      Write-Verbose -Message ('OSD-OMC-{0}-{1}-{2}{3}' -f $LclDept, $LclBuild, $LclRm, $LclDesk)
+      Write-Verbose -Message ('Computer Description: ABC-DEF-{0}-{1}-{2}{3}' -f $LclDept, $LclBuild, $LclRm, $LclDesk)
       
       $ComputerStat['Department'] = $LclDept     
       $ComputerStat['Building'] = $LclBuild
@@ -578,12 +563,7 @@ function Start-FastCruise
     }
     
     <#bookmark Application Test #> 
-    Do
-    {
-      $FunctionTest = Read-Host -Prompt 'Perform Function Tests (MS Office and Adobe) Y/N'
-    }
-    While(($FunctionTest -ne 'N') -and ($FunctionTest -ne 'Y')) 
-    # Start-ApplicationTest -FunctionTest $FunctionTest @WordpadApplicationTestSplat -Verbose
+    $FunctionTest = Show-VbForm -YesNoBox -Message 'Perform Applicaion Tests (MS Office and Adobe)?'     
     
     $AdobeResult = Start-ApplicationTest -FunctionTest $FunctionTest @PDFApplicationTestSplat
     $PowerPointResult = Start-ApplicationTest -FunctionTest $FunctionTest @PowerPointApplicationTestSplat
@@ -596,11 +576,11 @@ function Start-FastCruise
     $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
 
     <#bookmark Local phone number #> 
-    $Phone = Open-Form -FormLabel 'Nearest Phone Number (or last 4)'
+    $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (or last 4):'
     $ComputerStat['Phone'] = $Phone
     
     <#bookmark Fast cruise notes #>
-    [string]$Notes = Open-Form -FormLabel 'Notes'
+    [string]$Notes = Show-VbForm -InputBox -Message 'Notes about this cruise:'
     $ComputerStat['Notes'] = $Notes
   } #End PROCESS region
   
