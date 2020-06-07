@@ -63,6 +63,6 @@
   #Return $OutputListFile
 }
 
-Export-ComputerDescription -InputReportFile "C:\temp\Reports\FastCruise_2020-June.csv" -OutputListFile $env:HOMEDRIVE\temp\Reports\computerDescriptions.csv
+Export-ComputerDescription -InputReportFile 'C:\temp\Reports\FastCruise_2020-June.csv' -OutputListFile $env:HOMEDRIVE\temp\Reports\computerDescriptions.csv
 
 
