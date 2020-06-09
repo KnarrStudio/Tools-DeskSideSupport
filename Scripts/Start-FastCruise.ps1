@@ -2,7 +2,7 @@
 
 #Edit the splats to customize the script
 $FastCruiseSplat = @{
-  FastCruiseReportPath = 'C:\temp\Reports'
+  FastCruiseReportPath = 'C:\temp\Report'
   FastCruiseFile       = 'FastCruise.csv' 
   Verbose              = $true
 }
@@ -50,16 +50,23 @@ function Start-FastCruise
     Write-Verbose -Message 'Setup Report' 
     $YearMonth = Get-Date -Format yyyy-MMMM
     $FastCruiseFile = [String]$($FastCruiseFile.Replace('.',('_{0}.' -f $YearMonth)))
-    #$FastCruiseReport = ('{0}\{1}' -f $FastCruiseReportPath, $FastCruiseFile)
-    $FastCruiseReport = "C:\temp\Reports\FastCruise_Test.csv"
+    $FastCruiseReport = ('{0}\{1}' -f $FastCruiseReportPath, $FastCruiseFile)
+    #$FastCruiseReport = "C:\temp\Reports\FastCruise_Test.csv"
     Write-Verbose -Message ('{0}' -f $FastCruiseReport) 
     
+    Write-Verbose -Message ('Testing the Report Path: {0}' -f $FastCruiseReportPath)
+    if(-not (Test-Path -Path $FastCruiseReportPath))
+    {
+      Write-Verbose -Message 'Test Failed.  Creating the Directory now.'
+      $null = New-Item -Path $FastCruiseReportPath -ItemType Directory -Force
+    } 
     Write-Verbose -Message ('Testing the Report Path: {0}' -f $FastCruiseReport)
     if(-not (Test-Path -Path $FastCruiseReport))
     {
-      Write-Verbose -Message 'Test Failed.  Creating the Report now.'
-      $null = New-Item -Path $FastCruiseReport -ItemType File
+      Write-Verbose -Message 'Test Failed.  Creating the File now.'
+      $null = New-Item -Path $FastCruiseReport -ItemType File -Force
     } 
+    
     function Start-ApplicationTest
     {
       param
@@ -102,7 +109,7 @@ function Start-FastCruise
         $TestResult = 'Bypassed'
       }
       Return $TestResult
-    }
+    } # End ApplicationTest-Function
      
     function Get-LastComputerStatus
     {
@@ -150,7 +157,7 @@ function Start-FastCruise
         $info
       }
       Return $LatestStatus
-    }
+    } # End ComputerStatus-Function
     
     function Script:Get-Location
     {
@@ -375,33 +382,17 @@ function Start-FastCruise
         $Response = [Microsoft.VisualBasic.Interaction]::MsgBox($Message, 'YesNo,SystemModal,MsgBoxSetForeground', $TitleBar)
       }
       Return $Response
-    }
-    
-
-    function Get-McAfeeVersion 
-    { 
-      param ([Parameter(Mandatory)][Object]$Computer) 
-      Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
-      $ProductVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\DesktopProtection').GetValue('szProductVer') 
-      $EngineVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('EngineVersionMajor') 
-      $DatVer = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine',$Computer).OpenSubKey('SOFTWARE\McAfee\AVEngine').GetValue('AVDatVersion') 
- 
-      $ComputerStat['McAfee Product version'] = $ProductVer
-      $ComputerStat['McAfee Engine version'] = $EngineVer
-      $ComputerStat['McAfee Dat version'] = $DatVer
-    }
+    } # End VbForm-Function
     
     Function Get-InstalledSoftware
     {
-      [cmdletbinding(DefaultParameterSetName = 'SortList',SupportsPaging)]
+      [cmdletbinding(SupportsPaging)]
       Param(
         
-        [Parameter(Mandatory,HelpMessage = 'At least part of the software name to test', Position = 0,ParameterSetName = 'SoftwareName')]
+        [Parameter(Mandatory=$false,HelpMessage = 'At least part of the software name to test', Position = 0)]
         [String[]]$SoftwareName,
-        [Parameter(ParameterSetName = 'SortList')]
-        [Parameter(ParameterSetName = 'SoftwareName')]
-        [ValidateSet('InstallDate', 'DisplayName','DisplayVersion')] 
-        [String]$SortList = 'InstallDate'
+        [ValidateSet('DisplayName','DisplayVersion')] 
+        [String]$SelectParameter
       )
       
       Begin { 
@@ -417,18 +408,7 @@ function Start-FastCruise
           if($SoftwareName -eq $null) 
           {
             $SoftwareOutput = $InstalledSoftware |
-            #Sort-Object -Descending -Property $SortList |
-            Select-Object -Property @{
-              Name = 'Date Installed'
-              Exp  = {
-                $_.Installdate
-              }
-            }, @{
-              Name = 'Version'
-              Exp  = {
-                $_.DisplayVersion
-              }
-            }, DisplayName #, UninstallString 
+            Select-Object -Property Installdate, DisplayVersion, DisplayName #, UninstallString 
           }
           Else 
           {
@@ -436,12 +416,7 @@ function Start-FastCruise
             {
               $SoftwareOutput += $InstalledSoftware |
               Where-Object -Property DisplayName -Match -Value $Item |
-              Select-Object -ExpandProperty @{
-                Name = 'Version'
-                Exp  = {
-                  $_.DisplayVersion
-                }
-              }#, DisplayName # , UninstallString 
+              Select-Object -Property Installdate, DisplayVersion, DisplayName #, UninstallString 
             }
           }
         }
@@ -453,7 +428,6 @@ function Start-FastCruise
           # retrieve information about runtime error
           $info = New-Object -TypeName PSObject -Property @{
             Exception = $e.Exception.Message
-            Reason    = $e.CategoryInfo.Reason
           }
           
           # output information. Post-process collected info, and log info (optional)
@@ -461,36 +435,31 @@ function Start-FastCruise
         }
       }
       
-      End{ 
-        Switch ($SortList){
+      End{  
+        Switch ($SelectParameter){
           'DisplayName' 
           {
-            $SoftwareOutput |
-            Sort-Object -Property displayname
+            $SoftwareOutput.displayname
           }
           'DisplayVersion' 
           {
-            $SoftwareOutput |
-            Sort-Object -Property 'Version'
-          }
-          'UninstallString'
-          {
-
+            $SoftwareOutput.DisplayVersion
           }
           default  
           {
-            $SoftwareOutput |
-            Sort-Object -Property 'Date Installed'
-          } # 'InstallDate'
+            $SoftwareOutput
           
+          }
         }
       }
-    }
+    } # End InstalledSoftware-Function
     
     <#bookmark Software Versions #>
-    $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe 
-    $MozillaVersion = (Get-InstalledSoftware -SoftwareName 'Mozilla Firefox').version
-    $McAfeeVersion  = (Get-InstalledSoftware -SoftwareName 'McAfee Agent').version
+    $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe -SelectParameter DisplayVersion
+    $MozillaVersion = Get-InstalledSoftware -SoftwareName 'Mozilla Firefox' -SelectParameter DisplayVersion
+    $McAfeeVersion  = Get-InstalledSoftware -SoftwareName 'McAfee Agent' -SelectParameter DisplayVersion
+    #$TestSoftware  = Get-InstalledSoftware -SoftwareName 'Vmware' -SelectParameter DisplayVersion
+    
 
     <#bookmark Windows Updates #>    
     $LatestWSUSupdate = (New-Object -ComObject 'Microsoft.Update.AutoUpdate'). Results 
@@ -503,9 +472,7 @@ function Start-FastCruise
       'Date'                 = "$(Get-Date)"
       'Firefox Version'      = $MozillaVersion
       'Adobe Version'        = $AdobeVersion
-      'McAfee Product version' = ''
-      'McAfee Engine version' = ''
-      'McAfee Dat version'   = ''
+      'McAfee Version'       = $McAfeeVersion
       'WSUS Search Success'  = $LatestWSUSupdate.LastSearchSuccessDate
       'WSUS Install Success' = $LatestWSUSupdate.LastInstallationSuccessDate
       'Department'           = ''
@@ -587,17 +554,6 @@ Desk:
   END
   {
     
-    if($McAfeeVersion)
-    {
-      Get-McAfeeVersion -Computer $env:COMPUTERNAME
-    }
-    else
-    {
-      $ComputerStat['McAfee Product version'] = 'Not Found'
-      $ComputerStat['McAfee Engine version'] = 'Not Found'
-      $ComputerStat['McAfee Dat version'] = 'Not Found'
-    }
-
     $ComputerStat  |
     ForEach-Object -Process {
       [pscustomobject]$_
