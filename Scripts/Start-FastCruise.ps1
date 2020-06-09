@@ -351,6 +351,8 @@ function Start-FastCruise
         }
       }
       
+      #$Location = Get-Content D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json | ConvertFrom-Json
+      
       [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
       [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
       [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
