@@ -46,6 +46,7 @@ function Start-FastCruise
   {
     Write-Verbose -Message 'Setup Variables'
     #$LocationVerification = $null
+    #$ComputerName = $env:COMPUTERNAME
         
     Write-Verbose -Message 'Setup Report' 
     $YearMonth = Get-Date -Format yyyy-MMMM
@@ -462,6 +463,16 @@ function Start-FastCruise
     $McAfeeVersion  = Get-InstalledSoftware -SoftwareName 'McAfee Agent' -SelectParameter DisplayVersion
     #$TestSoftware  = Get-InstalledSoftware -SoftwareName 'Vmware' -SelectParameter DisplayVersion
     
+    function Get-MacAddress {
+    param(
+        [Parameter(Mandatory=$false,Position = 0)]
+        [Switch]$LastFour
+        )
+    $MacAddress = (Get-NetAdapter -Physical | where status -EQ 'Up').macaddress
+    if($LastFour){$MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')}
+    else{$MacInfo = $MacAddress}
+    $MacInfo
+    }
 
     <#bookmark Windows Updates #>    
     $LatestWSUSupdate = (New-Object -ComObject 'Microsoft.Update.AutoUpdate'). Results 
@@ -470,6 +481,7 @@ function Start-FastCruise
     Write-Verbose -Message 'Setting up the ComputerStat hash'
     $ComputerStat = [ordered]@{
       'ComputerName'         = "$env:COMPUTERNAME"
+      'MacAddress'           = $(Get-MacAddress)
       'UserName'             = "$env:USERNAME"
       'Date'                 = "$(Get-Date)"
       'Firefox Version'      = $MozillaVersion

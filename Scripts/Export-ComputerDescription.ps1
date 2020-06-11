@@ -1,4 +1,5 @@
-﻿function Export-ComputerDescription{
+﻿function Export-ComputerDescription
+{
   <#
       .SYNOPSIS
       Creates the Description for AD
@@ -47,13 +48,24 @@
   )
   $FullDescriptionList = @()
   
+  function Get-LastFour 
+  {
+    param(
+      [Parameter(Mandatory,Position = 0)]
+      [String]$MacAddress
+    )
+    $MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')
+    $MacInfo
+  }
+
   $FastCruiseData = (Import-Csv -Path $InputReportFile) | Sort-Object -Property Department, Building 
   
   $FastCruiseData |
   ForEach-Object -Process {
+    $MacFour = Get-LastFour -MacAddress $_.MacAddress
     $ADDescription = New-Object -TypeName System.Object
     $ADDescription | Add-Member -MemberType NoteProperty -Name 'ComputerName' -Value $_.ComputerName
-    $ADDescription | Add-Member -MemberType NoteProperty -Name 'ComputerDescription' -Value ('OSD-OMC-{0}-{1}-{2}{3}' -f $_.Department, $_.Building, $_.Room, $_.Desk) 
+    $ADDescription | Add-Member -MemberType NoteProperty -Name 'ComputerDescription' -Value ('OSD-OMC-{0}-{1}-{2}{3} [{4}]' -f $_.Department, $_.Building, $_.Room, $_.Desk, $MacFour) 
 
     $FullDescriptionList += $ADDescription
   }
