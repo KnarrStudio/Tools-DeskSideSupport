@@ -23,6 +23,12 @@ $PowerPointApplicationTestSplat = @{
     }
 #>
 
+# Edit the Variables
+$SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
+    
+
+
+
 function Start-FastCruise
 {
   param
@@ -141,7 +147,7 @@ function Start-FastCruise
         if($LatestStatus -eq $null)
         {
           Write-Output -InputObject 'Unable to find an existing record for this system.'
-          $Ans = 'NoHistory'
+          $Script:Ans = 'NoHistory'
         }
       }
       Catch
@@ -364,13 +370,13 @@ function Start-FastCruise
     {
       [cmdletbinding(DefaultParameterSetName = 'Message')]
       param(
-        [Parameter(Mandatory=$false,Position = 0,ParameterSetName = 'Message')]
+        [Parameter(Position = 0,ParameterSetName = 'Message')]
         [Switch]$YesNoBox,
-        [Parameter(Mandatory=$False,Position = 0,ParameterSetName = 'Input')]
+        [Parameter(Position = 0,ParameterSetName = 'Input')]
         [Switch]$InputBox,
-        [Parameter(Mandatory=$true,Position = 1)]
+        [Parameter(Mandatory,Position = 1)]
         [string]$Message,
-        [Parameter(Mandatory=$false,Position = 2)]
+        [Parameter(Position = 2)]
         [string]$TitleBar = 'Fast Cruise'
     
       )
@@ -378,10 +384,12 @@ function Start-FastCruise
       
       Add-Type -AssemblyName Microsoft.VisualBasic
       
-      if($InputBox){
+      if($InputBox)
+      {
         $Response = [Microsoft.VisualBasic.Interaction]::InputBox($Message, $TitleBar)
       }
-      if($YesNoBox){  
+      if($YesNoBox)
+      {
         $Response = [Microsoft.VisualBasic.Interaction]::MsgBox($Message, 'YesNo,SystemModal,MsgBoxSetForeground', $TitleBar)
       }
       Return $Response
@@ -392,7 +400,7 @@ function Start-FastCruise
       [cmdletbinding(SupportsPaging)]
       Param(
         
-        [Parameter(Mandatory=$false,HelpMessage = 'At least part of the software name to test', Position = 0)]
+        [Parameter(HelpMessage = 'At least part of the software name to test',ValueFromPipeline, Position = 0)]
         [String[]]$SoftwareName,
         [ValidateSet('DisplayName','DisplayVersion')] 
         [String]$SelectParameter
@@ -451,27 +459,28 @@ function Start-FastCruise
           default  
           {
             $SoftwareOutput
-          
           }
         }
       }
     } # End InstalledSoftware-Function
     
-    <#bookmark Software Versions #>
-    $AdobeVersion = Get-InstalledSoftware -SoftwareName Adobe -SelectParameter DisplayVersion
-    $MozillaVersion = Get-InstalledSoftware -SoftwareName 'Mozilla Firefox' -SelectParameter DisplayVersion
-    $McAfeeVersion  = Get-InstalledSoftware -SoftwareName 'McAfee Agent' -SelectParameter DisplayVersion
-    #$TestSoftware  = Get-InstalledSoftware -SoftwareName 'Vmware' -SelectParameter DisplayVersion
-    
-    function Get-MacAddress {
-    param(
-        [Parameter(Mandatory=$false,Position = 0)]
+     
+    function Get-MacAddress 
+    {
+      param(
+        [Parameter(Position = 0)]
         [Switch]$LastFour
-        )
-    $MacAddress = (Get-NetAdapter -Physical | where status -EQ 'Up').macaddress
-    if($LastFour){$MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')}
-    else{$MacInfo = $MacAddress}
-    $MacInfo
+      )
+      $MacAddress = (Get-NetAdapter -Physical | Where-Object -Property status -EQ -Value 'Up').macaddress
+      if($LastFour)
+      {
+        $MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')
+      }
+      else
+      {
+        $MacInfo = $MacAddress
+      }
+      $MacInfo
     }
 
     <#bookmark Windows Updates #>    
@@ -479,26 +488,38 @@ function Start-FastCruise
     
     
     Write-Verbose -Message 'Setting up the ComputerStat hash'
+    <#bookmark ComputerStat Hashtable #>
     $ComputerStat = [ordered]@{
-      'ComputerName'         = "$env:COMPUTERNAME"
-      'MacAddress'           = $(Get-MacAddress)
-      'UserName'             = "$env:USERNAME"
-      'Date'                 = "$(Get-Date)"
-      'Firefox Version'      = $MozillaVersion
-      'Adobe Version'        = $AdobeVersion
-      'McAfee Version'       = $McAfeeVersion
-      'WSUS Search Success'  = $LatestWSUSupdate.LastSearchSuccessDate
-      'WSUS Install Success' = $LatestWSUSupdate.LastInstallationSuccessDate
-      'Department'           = ''
-      'Building'             = ''
-      'Room'                 = ''
-      'Desk'                 = ''
+      'ComputerName'       = "$env:COMPUTERNAME"
+      'MacAddress'         = ''
+      'UserName'           = "$env:USERNAME"
+      'Date'               = "$(Get-Date)"
+      'WSUS Search Success' = $null
+      'WSUS Install Success' = ''
+      'Department'         = ''
+      'Building'           = ''
+      'Room'               = ''
+      'Desk'               = ''
     }
+
   } #End BEGIN region
   
   Process
   {
-   
+    
+    <#bookmark Get-MacAddress #>
+    Write-Verbose -Message 'Getting Mac Address'
+    $ComputerStat['MacAddress'] = Get-MacAddress
+    
+    <#bookmark Software Versions #>
+    #$ComputerStat['VmWare Version']  = Get-InstalledSoftware -SoftwareName 'Vmware' -SelectParameter DisplayVersion
+    
+    #$SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
+    foreach($SoftwareItem in $SoftwareChecks)
+    {
+      $ComputerStat["$SoftwareItem"] = Get-InstalledSoftware -SoftwareName $SoftwareItem[0] -SelectParameter DisplayVersion
+    }
+    
     Write-Verbose -Message 'Getting Last Status recorded'
     $LatestStatus = (Get-LastComputerStatus -FastCruiseReport $FastCruiseReport) 
     #Write-Output -InputObject 'Latest Status'
