@@ -1,4 +1,5 @@
-﻿#requires -Version 3.0
+﻿#requires -Version 3.0 -Modules NetAdapter
+
 
 #Edit the splats to customize the script
 $FastCruiseSplat = @{
@@ -25,7 +26,6 @@ $PowerPointApplicationTestSplat = @{
 
 # Edit the Variables
 $SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
-    
 
 
 
@@ -176,6 +176,8 @@ function Start-FastCruise
      
       [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
+      #$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json' | ConvertFrom-Json
+      #[xml]$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.xml' 
       $Location = [Ordered]@{
         Department = [Ordered]@{
           MCDO = [Ordered]@{
@@ -357,9 +359,8 @@ function Start-FastCruise
           }
         }
       }
-      
-      #$Location = Get-Content D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json | ConvertFrom-Json
-      
+      #>      
+            
       [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
       [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
       [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
@@ -578,7 +579,11 @@ Desk:
     $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
 
     <#bookmark Local phone number #> 
-    $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (or last 4):'
+    $RegexPhone = '^\d{3}-\d{3}-\d{4}'
+    While($Phone -notmatch $RegexPhone)
+    {
+      $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-458-1234):'
+    }
     $ComputerStat['Phone'] = $Phone
     
     <#bookmark Fast cruise notes #>
