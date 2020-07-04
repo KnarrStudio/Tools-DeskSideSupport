@@ -74,6 +74,49 @@ function Start-FastCruise
       $null = New-Item -Path $FastCruiseReport -ItemType File -Force
     } 
     
+    function ConvertTo-Hashtable {
+      [CmdletBinding()]
+      [OutputType('hashtable')]
+      param (
+        [Parameter(ValueFromPipeline)]
+        $InputObject
+      )
+ 
+      process {
+        ## Return null if the input is null. This can happen when calling the function
+        ## recursively and a property is null
+        if ($null -eq $InputObject) {
+          return $null
+        }
+ 
+        ## Check if the input is an array or collection. If so, we also need to convert
+        ## those types into hash tables as well. This function will convert all child
+        ## objects into hash tables (if applicable)
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+          $collection = @(
+            foreach ($object in $InputObject) {
+              ConvertTo-Hashtable -InputObject $object
+            }
+          )
+ 
+          ## Return the array but don't enumerate it because the object may be pretty complex
+          Write-Output -NoEnumerate $collection
+        } elseif ($InputObject -is [psobject]) { ## If the object has properties that need enumeration
+          ## Convert it to its own hash table and return it
+          $hash = @{}
+          foreach ($property in $InputObject.PSObject.Properties) {
+            $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
+          }
+          $hash
+        } else {
+          ## If the object isn't an array, collection, or other object, it's already a hash table
+          ## So just return it.
+          $InputObject
+        }
+      }
+    }
+    
+
     function Start-ApplicationTest
     {
       param
@@ -173,197 +216,206 @@ function Start-FastCruise
           Get-Location of workstation
       #>
       [CmdletBinding()]
-     
+            param
+      (
+        [Parameter(Mandatory = $false, Position = 0)]
+        [Object]$LocationHash
+      )
+
       [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
-      #$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json' | ConvertFrom-Json
+     # $json = Get-Content "C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json" 
+     # $location = $json | ConvertFrom-Json | ConvertTo-HashTable
+      
       #[xml]$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.xml' 
-      $Location = [Ordered]@{
-        Department = [Ordered]@{
-          MCDO = [Ordered]@{
-            Building = [Ordered]@{
-              AV29  = [Ordered]@{
-                Room = @(
-                  8, 
-                  9, 
-                  10, 
-                  11, 
-                  12, 
-                  13, 
-                  14, 
-                  15, 
-                  16, 
-                  17, 
-                  18, 
-                  19, 
-                  20
-                )
-              }
-              AV34  = [Ordered]@{
-                Room = @(
-                  1, 
-                  6, 
-                  7, 
-                  8, 
-                  201, 
-                  202, 
-                  203, 
-                  204, 
-                  205
-                )
-              }
-              ELC3  = [Ordered]@{
-                Room = @(
-                  100, 
-                  101, 
-                  102, 
-                  103, 
-                  104, 
-                  105, 
-                  106, 
-                  107
-                )
-              }
-              ELC31 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              ELC32 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              ELC33 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              ELC34 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              ELC35 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              ELC36 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-            }
-          }
-          CA   = [Ordered]@{
-            Building = [Ordered]@{
-              AV29 = [Ordered]@{
-                Room = @(
-                  1, 
-                  2, 
-                  3, 
-                  4, 
-                  5, 
-                  6, 
-                  7, 
-                  23, 
-                  24, 
-                  25, 
-                  26, 
-                  27, 
-                  28, 
-                  29, 
-                  30
-                )
-              }
-              AV34 = [Ordered]@{
-                Room = @(
-                  1, 
-                  2, 
-                  3, 
-                  200, 
-                  214
-                )
-              }
-              AV44 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              AV45 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              AV46 = [Ordered]@{
-                Room = @(
-                  1
-                )
-              }
-              AV47 = [Ordered]@{
-                Room = @(
-                  1, 
-                  2
-                )
-              }
-              AV48 = [Ordered]@{
-                Room = @(
-                  1, 
-                  2
-                )
+      
+      if(! $LocationHash){
+        $LocationHash = [Ordered]@{
+          Department = [Ordered]@{
+            MCDO = [Ordered]@{
+              Building = [Ordered]@{
+                AV29  = [Ordered]@{
+                  Room = @(
+                    8, 
+                    9, 
+                    10, 
+                    11, 
+                    12, 
+                    13, 
+                    14, 
+                    15, 
+                    16, 
+                    17, 
+                    18, 
+                    19, 
+                    20
+                  )
+                }
+                AV34  = [Ordered]@{
+                  Room = @(
+                    1, 
+                    6, 
+                    7, 
+                    8, 
+                    201, 
+                    202, 
+                    203, 
+                    204, 
+                    205
+                  )
+                }
+                ELC3  = [Ordered]@{
+                  Room = @(
+                    100, 
+                    101, 
+                    102, 
+                    103, 
+                    104, 
+                    105, 
+                    106, 
+                    107
+                  )
+                }
+                ELC31 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                ELC32 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                ELC33 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                ELC34 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                ELC35 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                ELC36 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
               }
             }
-          }
-          PRO  = [Ordered]@{
-            Building = [Ordered]@{
-              AV34 = [Ordered]@{
-                Room = @(
-                  210, 
-                  211, 
-                  212, 
-                  213
-                )
-              }
-              ELC4 = [Ordered]@{
-                Room = @(
-                  1, 
-                  100, 
-                  101, 
-                  102, 
-                  103, 
-                  104, 
-                  105, 
-                  106, 
-                  107
-                )
+            CA   = [Ordered]@{
+              Building = [Ordered]@{
+                AV29 = [Ordered]@{
+                  Room = @(
+                    1, 
+                    2, 
+                    3, 
+                    4, 
+                    5, 
+                    6, 
+                    7, 
+                    23, 
+                    24, 
+                    25, 
+                    26, 
+                    27, 
+                    28, 
+                    29, 
+                    30
+                  )
+                }
+                AV34 = [Ordered]@{
+                  Room = @(
+                    1, 
+                    2, 
+                    3, 
+                    200, 
+                    214
+                  )
+                }
+                AV44 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                AV45 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                AV46 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
+                AV47 = [Ordered]@{
+                  Room = @(
+                    1, 
+                    2
+                  )
+                }
+                AV48 = [Ordered]@{
+                  Room = @(
+                    1, 
+                    2
+                  )
+                }
               }
             }
-          }
-          TJ   = [Ordered]@{
-            Building = [Ordered]@{
-              AV34 = [Ordered]@{
-                Room = @(
-                  2, 
-                  3, 
-                  13, 
-                  11
-                )
+            PRO  = [Ordered]@{
+              Building = [Ordered]@{
+                AV34 = [Ordered]@{
+                  Room = @(
+                    210, 
+                    211, 
+                    212, 
+                    213
+                  )
+                }
+                ELC4 = [Ordered]@{
+                  Room = @(
+                    1, 
+                    100, 
+                    101, 
+                    102, 
+                    103, 
+                    104, 
+                    105, 
+                    106, 
+                    107
+                  )
+                }
               }
-              ELC2 = [Ordered]@{
-                Room = @(
-                  1
-                )
+            }
+            TJ   = [Ordered]@{
+              Building = [Ordered]@{
+                AV34 = [Ordered]@{
+                  Room = @(
+                    2, 
+                    3, 
+                    13, 
+                    11
+                  )
+                }
+                ELC2 = [Ordered]@{
+                  Room = @(
+                    1
+                  )
+                }
               }
             }
           }
         }
-      }
-      #>      
+      }#>      
             
-      [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
-      [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
-      [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
+      [string]$Script:LclDept = $LocationHash.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
+      [string]$Script:LclBuild = $LocationHash.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
+      [string]$Script:LclRm = $LocationHash.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
       [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
     } # End Location-Function
     
