@@ -582,7 +582,7 @@ Desk:
     $RegexPhone = '^\d{3}-\d{3}-\d{4}'
     While($Phone -notmatch $RegexPhone)
     {
-      $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-458-1234):'
+      $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-555-1234):'
     }
     $ComputerStat['Phone'] = $Phone
     
