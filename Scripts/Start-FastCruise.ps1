@@ -477,7 +477,6 @@ function Start-FastCruise
         }
       }
     } # End InstalledSoftware-Function
-    
      
     function Get-MacAddress 
     {
@@ -499,7 +498,6 @@ function Start-FastCruise
 
     <#bookmark Windows Updates #>    
     $LatestWSUSupdate = (New-Object -ComObject 'Microsoft.Update.AutoUpdate'). Results 
-    
     
     Write-Verbose -Message 'Setting up the ComputerStat hash'
     <#bookmark ComputerStat Hashtable #>
@@ -563,7 +561,7 @@ Desk:
     
     if($LocationVerification -eq 'No')
     {
-      Get-Location -LocationHash $location
+      Get-Location # The location function
       Write-Verbose -Message ('Computer Description: ABC-DEF-{0}-{1}-{2}{3}' -f $LclDept, $LclBuild, $LclRm, $LclDesk)
       
       $ComputerStat['Department'] = $LclDept     
