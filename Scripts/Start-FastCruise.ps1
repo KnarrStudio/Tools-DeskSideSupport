@@ -29,8 +29,6 @@ $SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('
 
 #$jsonFile = "C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json" 
 
-
-
 function Start-FastCruise
 {
   param
@@ -168,11 +166,11 @@ function Start-FastCruise
       Return $LatestStatus
     } # End ComputerStatus-Function
     
-    function Script:Get-Location
+    function Script:Get-ComputerLocation 
     {
       <#
           .SYNOPSIS
-          Get-Location of workstation
+          Get-ComputerLocation of workstation
       #>
 
       [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')

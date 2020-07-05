@@ -1,4 +1,4 @@
-﻿$Location = [Ordered]@{
+﻿$ComputerLocation = [Ordered]@{
         Department = [Ordered]@{
           MCDO = [Ordered]@{
             Building = [Ordered]@{
