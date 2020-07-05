@@ -27,6 +27,8 @@ $PowerPointApplicationTestSplat = @{
 # Edit the Variables
 $SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
 
+#$jsonFile = "C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json" 
+
 
 
 function Start-FastCruise
@@ -74,49 +76,6 @@ function Start-FastCruise
       $null = New-Item -Path $FastCruiseReport -ItemType File -Force
     } 
     
-    function ConvertTo-Hashtable {
-      [CmdletBinding()]
-      [OutputType('hashtable')]
-      param (
-        [Parameter(ValueFromPipeline)]
-        $InputObject
-      )
- 
-      process {
-        ## Return null if the input is null. This can happen when calling the function
-        ## recursively and a property is null
-        if ($null -eq $InputObject) {
-          return $null
-        }
- 
-        ## Check if the input is an array or collection. If so, we also need to convert
-        ## those types into hash tables as well. This function will convert all child
-        ## objects into hash tables (if applicable)
-        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
-          $collection = @(
-            foreach ($object in $InputObject) {
-              ConvertTo-Hashtable -InputObject $object
-            }
-          )
- 
-          ## Return the array but don't enumerate it because the object may be pretty complex
-          Write-Output -NoEnumerate $collection
-        } elseif ($InputObject -is [psobject]) { ## If the object has properties that need enumeration
-          ## Convert it to its own hash table and return it
-          $hash = @{}
-          foreach ($property in $InputObject.PSObject.Properties) {
-            $hash[$property.Name] = ConvertTo-Hashtable -InputObject $property.Value
-          }
-          $hash
-        } else {
-          ## If the object isn't an array, collection, or other object, it's already a hash table
-          ## So just return it.
-          $InputObject
-        }
-      }
-    }
-    
-
     function Start-ApplicationTest
     {
       param
@@ -215,12 +174,6 @@ function Start-FastCruise
           .SYNOPSIS
           Get-Location of workstation
       #>
-      [CmdletBinding()]
-            param
-      (
-        [Parameter(Mandatory = $false, Position = 0)]
-        [Object]$LocationHash
-      )
 
       [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
@@ -229,9 +182,17 @@ function Start-FastCruise
       
       #[xml]$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.xml' 
       
-      if(! $LocationHash){
-        $LocationHash = [Ordered]@{
+      $Location = [Ordered]@{
           Department = [Ordered]@{
+            InternalHash = @{
+                Building = @{
+                    None = @{
+                        Room = @(
+                        0
+                        )
+                    }
+                }
+            }
             MCDO = [Ordered]@{
               Building = [Ordered]@{
                 AV29  = [Ordered]@{
@@ -411,11 +372,11 @@ function Start-FastCruise
             }
           }
         }
-      }#>      
+      #>      
             
-      [string]$Script:LclDept = $LocationHash.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
-      [string]$Script:LclBuild = $LocationHash.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
-      [string]$Script:LclRm = $LocationHash.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
+      [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
+      [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
+      [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
       [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
     } # End Location-Function
     
@@ -544,15 +505,15 @@ function Start-FastCruise
     <#bookmark ComputerStat Hashtable #>
     $ComputerStat = [ordered]@{
       'ComputerName'       = "$env:COMPUTERNAME"
-      'MacAddress'         = ''
+      'MacAddress'         = 'N/A'
       'UserName'           = "$env:USERNAME"
       'Date'               = "$(Get-Date)"
-      'WSUS Search Success' = $null
-      'WSUS Install Success' = ''
-      'Department'         = ''
-      'Building'           = ''
-      'Room'               = ''
-      'Desk'               = ''
+      'WSUS Search Success' = 'N/A'
+      'WSUS Install Success' = 'N/A'
+      'Department'         = 'N/A'
+      'Building'           = 'N/A'
+      'Room'               = 'N/A'
+      'Desk'               = 'N/A'
     }
 
   } #End BEGIN region
@@ -602,7 +563,7 @@ Desk:
     
     if($LocationVerification -eq 'No')
     {
-      Get-Location
+      Get-Location -LocationHash $location
       Write-Verbose -Message ('Computer Description: ABC-DEF-{0}-{1}-{2}{3}' -f $LclDept, $LclBuild, $LclRm, $LclDesk)
       
       $ComputerStat['Department'] = $LclDept     
