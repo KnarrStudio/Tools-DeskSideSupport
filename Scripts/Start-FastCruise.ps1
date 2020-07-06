@@ -1,6 +1,5 @@
 ﻿#requires -Version 3.0 -Modules NetAdapter
 
-
 #Edit the splats to customize the script
 $FastCruiseSplat = @{
   FastCruiseReportPath = 'C:\temp\Report'
@@ -27,7 +26,8 @@ $PowerPointApplicationTestSplat = @{
 # Edit the Variables
 $SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
 
-#$jsonFile = "C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json" 
+$jsonFilePath = 'C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\computerlocation.json' 
+
 
 function Start-FastCruise
 {
@@ -74,6 +74,17 @@ function Start-FastCruise
       $null = New-Item -Path $FastCruiseReport -ItemType File -Force
     } 
     
+
+    # Variables
+    $jsonFile
+    $Phone = $null
+    
+    Write-Verbose -Message 'Get-Content of Json File'
+    $Script:PhysicalLocations = Get-Content -Path $jsonFile | ConvertFrom-Json
+    Write-Verbose -Message 'Physical Locations'
+    $PhysicalLocations
+    
+
     function Start-ApplicationTest
     {
       param
@@ -130,6 +141,8 @@ function Start-FastCruise
         [String]$FastCruiseReport
       )
   
+
+
       Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
       Write-Verbose -Message 'Importing the Fast Cruise Report'
       $CompImport = Import-Csv -Path $FastCruiseReport
@@ -166,32 +179,67 @@ function Start-FastCruise
       Return $LatestStatus
     } # End ComputerStatus-Function
     
-    function Script:Get-ComputerLocation 
+    function Get-ComputerLocation 
     {
       <#
           .SYNOPSIS
           Get-ComputerLocation of workstation
       #>
 
-      [Object[]]$Desk       = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+      param
+      (
+        [Parameter(Mandatory = $false, Position = 0)]
+        [Object]$jsonFilePath
+      )
+
+      function Convert-JSONToHash
+      {
+        param(
+          $root
+        )
+        $hash = @{}
+
+        $keys = $root |
+        Get-Member -MemberType NoteProperty |
+        Select-Object -ExpandProperty Name
+
+        $keys | ForEach-Object -Process {
+          $key = $_
+          $obj = $root.$($_)
+          if($obj -match '@{')
+          {
+            $nesthash = ConvertJSONToHash -root $obj
+            $hash.add($key,$nesthash)
+          }
+          else
+          {
+            $hash.add($key,$obj)
+          }
+        }
+        return $hash
+      }
+
+      [Object[]]$Desk = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
-     # $json = Get-Content "C:\Users\Erik.Arnesen\Documents\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.json" 
-     # $location = $json | ConvertFrom-Json | ConvertTo-HashTable
-      
-      #[xml]$Location = Get-Content 'D:\GitHub\KnarrStudio\Tools-DeskSideSupport\Scripts\Location.xml' 
-      
-      $Location = [Ordered]@{
+      if(Test-Path $jsonFilePath)
+      {
+        $location = Convert-JSONToHash -root $(Get-Content -Path $jsonFilePath -ErrorAction SilentlyContinue | ConvertFrom-Json)
+      }
+       
+      if($location -eq $null)
+      {
+        $location = [Ordered]@{
           Department = [Ordered]@{
             InternalHash = @{
-                Building = @{
-                    None = @{
-                        Room = @(
-                        0
-                        )
-                    }
+              Building = @{
+                None = @{
+                  Room = @(
+                    0
+                  )
                 }
+              }
             }
-            MCDO = [Ordered]@{
+            MCDO         = [Ordered]@{
               Building = [Ordered]@{
                 AV29  = [Ordered]@{
                   Room = @(
@@ -267,7 +315,7 @@ function Start-FastCruise
                 }
               }
             }
-            CA   = [Ordered]@{
+            CA           = [Ordered]@{
               Building = [Ordered]@{
                 AV29 = [Ordered]@{
                   Room = @(
@@ -326,7 +374,7 @@ function Start-FastCruise
                 }
               }
             }
-            PRO  = [Ordered]@{
+            PRO          = [Ordered]@{
               Building = [Ordered]@{
                 AV34 = [Ordered]@{
                   Room = @(
@@ -351,7 +399,7 @@ function Start-FastCruise
                 }
               }
             }
-            TJ   = [Ordered]@{
+            TJ           = [Ordered]@{
               Building = [Ordered]@{
                 AV34 = [Ordered]@{
                   Room = @(
@@ -370,14 +418,15 @@ function Start-FastCruise
             }
           }
         }
+      }
       #>      
             
-      [string]$Script:LclDept = $Location.Department.Keys | Out-GridView -Title 'Department' -OutputMode Single
-      [string]$Script:LclBuild = $Location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
-      [string]$Script:LclRm = $Location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
+      [string]$Script:LclDept = $location.Department.keys | Out-GridView -Title 'Department' -OutputMode Single
+      [string]$Script:LclBuild = $location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
+      [string]$Script:LclRm = $location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
       [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
     } # End Location-Function
-    
+
     function Show-VbForm
     {
       [cmdletbinding(DefaultParameterSetName = 'Message')]
@@ -516,7 +565,6 @@ function Start-FastCruise
   
   Process
   {
-    
     <#bookmark Get-MacAddress #>
     Write-Verbose -Message 'Getting Mac Address'
     $ComputerStat['MacAddress'] = Get-MacAddress
@@ -552,14 +600,26 @@ Room:
 
 Desk:
 - {4}
-          
-'@ -f $LatestStatus.ComputerName, $LatestStatus.Department, $LatestStatus.Building, $LatestStatus.Room, $LatestStatus.Desk)
 
+Phone
+- {5}
+          
+'@ -f $LatestStatus.ComputerName, $LatestStatus.Department, $LatestStatus.Building, $LatestStatus.Room, $LatestStatus.Desk, $LatestStatus.Phone)
+
+    <#bookmark Application Test #> 
+    $FunctionTest = Show-VbForm -YesNoBox -Message 'Perform Applicaion Tests (MS Office and Adobe)?'     
+    
+    $AdobeResult = Start-ApplicationTest -FunctionTest $FunctionTest @PDFApplicationTestSplat
+    $PowerPointResult = Start-ApplicationTest -FunctionTest $FunctionTest @PowerPointApplicationTestSplat
+    
+    $ComputerStat['MS Office Test'] = $PowerPointResult
+    $ComputerStat['Adobe Test'] = $AdobeResult
+    
     $LocationVerification = Show-VbForm -YesNoBox -Message $ComputerLocation
     
     if($LocationVerification -eq 'No')
     {
-      Get-Location # The location function
+      Get-ComputerLocation -jsonFilePath $jsonFilePath
       Write-Verbose -Message ('Computer Description: ABC-DEF-{0}-{1}-{2}{3}' -f $LclDept, $LclBuild, $LclRm, $LclDesk)
       
       $ComputerStat['Department'] = $LclDept     
@@ -572,29 +632,25 @@ Desk:
       $ComputerStat['Building'] = $($LatestStatus.Building)
       $ComputerStat['Room'] = $($LatestStatus.Room)
       $ComputerStat['Desk'] = $($LatestStatus.Desk)
+      $ComputerStat['Phone'] = $($LatestStatus.Phone)
     }
-    
-    <#bookmark Application Test #> 
-    $FunctionTest = Show-VbForm -YesNoBox -Message 'Perform Applicaion Tests (MS Office and Adobe)?'     
-    
-    $AdobeResult = Start-ApplicationTest -FunctionTest $FunctionTest @PDFApplicationTestSplat
-    $PowerPointResult = Start-ApplicationTest -FunctionTest $FunctionTest @PowerPointApplicationTestSplat
-    
-    $ComputerStat['MS Office Test'] = $PowerPointResult
-    $ComputerStat['Adobe Test'] = $AdobeResult
-    
+      
+    if($LocationVerification -eq 'No')
+    {
+      <#bookmark Local phone number #> 
+      $RegexPhone = '^\d{3}-\d{3}-\d{4}'
+      While($Phone -notmatch $RegexPhone)
+      {
+        $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-555-1234):'
+      }
+      $ComputerStat['Phone'] = $Phone
+    }
+
+
     <#bookmark Windows Update Status #> 
     $ComputerStat['WSUS Search Success'] = $LatestWSUSupdate.LastSearchSuccessDate
     $ComputerStat['WSUS Install Success'] = $LatestWSUSupdate.LastInstallationSuccessDate
-
-    <#bookmark Local phone number #> 
-    $RegexPhone = '^\d{3}-\d{3}-\d{4}'
-    While($Phone -notmatch $RegexPhone)
-    {
-      $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-555-1234):'
-    }
-    $ComputerStat['Phone'] = $Phone
-    
+  
     <#bookmark Fast cruise notes #>
     [string]$Notes = Show-VbForm -InputBox -Message 'Notes about this cruise:'
     $ComputerStat['Notes'] = $Notes
