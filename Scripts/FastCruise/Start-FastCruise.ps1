@@ -76,14 +76,20 @@ function Start-FastCruise
     
 
     # Variables
-    $jsonFile
+    #$jsonFile
     $Phone = $null
     
     Write-Verbose -Message 'Get-Content of Json File'
-    $Script:PhysicalLocations = Get-Content -Path $jsonFile | ConvertFrom-Json
-    Write-Verbose -Message 'Physical Locations'
-    $PhysicalLocations
-    
+    try
+    {
+      $Script:PhysicalLocations = Get-Content -Path $jsonFile -ErrorAction Stop | ConvertFrom-Json 
+      Write-Verbose -Message 'Physical Locations'
+      $PhysicalLocations
+    }
+    catch
+    {
+      $PhysicalLocations = $null
+    }
 
     function Start-ApplicationTest
     {
@@ -140,8 +146,6 @@ function Start-FastCruise
         [Parameter(Mandatory, Position = 0)]
         [String]$FastCruiseReport
       )
-  
-
 
       Write-Verbose -Message ('Enter Function: {0}' -f $PSCmdlet.MyInvocation.MyCommand.Name)
       Write-Verbose -Message 'Importing the Fast Cruise Report'
@@ -221,12 +225,23 @@ function Start-FastCruise
 
       [Object[]]$Desk = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
       
-      if(Test-Path $jsonFilePath)
+      if(Test-Path $jsonFilePath -ErrorAction SilentlyContinue)
       {
         $location = Convert-JSONToHash -root $(Get-Content -Path $jsonFilePath -ErrorAction SilentlyContinue | ConvertFrom-Json)
+        [string]$Script:LclDept = $location.Department.keys | Out-GridView -Title 'Department' -OutputMode Single
+        [string]$Script:LclBuild = $location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
+        [string]$Script:LclRm = $location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
+        [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
+      }
+      else
+      {
+        [string]$Script:LclDept = Show-VbForm -InputBox -Message 'Department: MCDO, PRO, CA, Other' -TitleBar 'Department'
+        [string]$Script:LclBuild = Show-VbForm -InputBox -Message 'Building: ELC44, AV34' -TitleBar 'Building'
+        [string]$Script:LclRm = Show-VbForm -InputBox -Message 'Room Number:' -TitleBar 'Room'
+        [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
       }
        
-      if($location -eq $null)
+      if($location -eq 'rainbow')
       {
         $location = [Ordered]@{
           Department = [Ordered]@{
@@ -420,11 +435,6 @@ function Start-FastCruise
         }
       }
       #>      
-            
-      [string]$Script:LclDept = $location.Department.keys | Out-GridView -Title 'Department' -OutputMode Single
-      [string]$Script:LclBuild = $location.Department[$LclDept].Building.Keys | Out-GridView -Title 'Building' -OutputMode Single
-      [string]$Script:LclRm = $location.Department[$LclDept].Building[$LclBuild].Room | Out-GridView -Title 'Room' -OutputMode Single
-      [string]$Script:LclDesk = $Desk | Out-GridView -Title 'Desk' -OutputMode Single
     } # End Location-Function
 
     function Show-VbForm
