@@ -111,7 +111,8 @@ Begin
 			try
 			{
 				Write-Verbose -Message ('Attempting to open {0} with {1}' -f $TestFile, $ProcessName)
-				Start-Process -FilePath $TestProgram -ArgumentList $TestFile
+				#Start-Process -FilePath $TestProgram -ArgumentList $TestFile
+				Start-Process -FilePath $TestFile
 
 				Write-Host -Object ('The Fast Cruise Script will continue after {0} has been closed.' -f $ProcessName) -BackgroundColor Red -ForegroundColor Yellow
 				Write-Verbose -Message ('Wait-Process: {0}' -f $ProcessName)
@@ -210,7 +211,7 @@ Begin
 				$obj = $root.$($_)
 				if($obj -match '@{')
 				{
-					$nesthash = ConvertJSONToHash -root $obj
+					$nesthash = Convert-JSONToHash -root $obj
 					$hash.add($key,$nesthash)
 				}
 				else
@@ -221,7 +222,7 @@ Begin
 			return $hash
 		}
 
-		[Object[]]$Desk = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')
+		[Object[]]$Desk = @('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q')
 
 		if(Test-Path $jsonFilePath -ErrorAction SilentlyContinue)
 		{
@@ -558,6 +559,7 @@ Begin
 	<#bookmark ComputerStat Hashtable #>
 	$ComputerStat = [ordered]@{
 		'ComputerName' = "$env:COMPUTERNAME"
+        'SerialNumber' = 'N/A'
 		'MacAddress' = 'N/A'
 		'UserName' = "$env:USERNAME"
 		'Date' = "$(Get-Date)"
@@ -576,6 +578,10 @@ Process
 	<#bookmark Get-MacAddress #>
 	Write-Verbose -Message 'Getting Mac Address'
 	$ComputerStat['MacAddress'] = Get-MacAddress
+    
+    Write-Verbose -Message 'Getting Serial Number'
+    $ComputerStat['SerialNumber'] = (Get-WmiObject win32_SystemEnclosure).serialnumber
+    
 
 	<#bookmark Software Versions #>
 	#$ComputerStat['VmWare Version']  = Get-InstalledSoftware -SoftwareName 'Vmware' -SelectParameter DisplayVersion
@@ -597,6 +603,9 @@ Process
 ComputerName: (Assest Tag)
 - {0}
 
+Serial Number:
+- {6}
+
 Department:
 - {1}
 
@@ -612,7 +621,7 @@ Desk:
 Phone
 - {5}
           
-'@ -f $LatestStatus.ComputerName, $LatestStatus.Department, $LatestStatus.Building, $LatestStatus.Room, $LatestStatus.Desk, $LatestStatus.Phone)
+'@ -f $LatestStatus.ComputerName, $LatestStatus.Department, $LatestStatus.Building, $LatestStatus.Room, $LatestStatus.Desk, $LatestStatus.Phone,$LatestStatus.SerialNumber)
 
 	<#bookmark Application Test #> 
 	$FunctionTest = Show-VbForm -YesNoBox -Message 'Perform Applicaion Tests (MS Office and Adobe)?' 
@@ -686,4 +695,286 @@ END
 Clear-Host #Clears the console.  This shouldn't be needed once the script can be run directly from PS
 Start-FastCruise @FastCruiseSplat # Make sure you have updated and completed the "Splats" at the top of the script
 
+
+function Send-eMail {
+  [CmdletBinding(DefaultParameterSetName = 'Default')]
+  param
+  (
+    [Parameter(Mandatory,HelpMessage = 'To email address(es)', Position = 0)]
+    [String[]]$MailTo,
+    [Parameter(Mandatory,HelpMessage = 'From email address', Position = 1)]
+    [Object]$MailFrom,
+    [Parameter(Mandatory,HelpMessage = 'Email subject', Position = 2)]
+    [Object]$msgsubj,
+    [Parameter(Mandatory,HelpMessage = 'SMTP Server(s)', Position = 3)]
+    [String[]]$SmtpServers,
+    [Parameter(Position = 4)]
+    [AllowNull()]
+    $MessageBody,
+    [Parameter(Position = 5)]
+    [AllowNull()]
+    [Object]$AttachedFile,
+    [Parameter(Position = 6)]
+    [AllowEmptyString()]
+    [string]$ErrorFile = ''
+  )
+
+  $DateTime = Get-Date -Format s
+
+  if([string]::IsNullOrEmpty($MessageBody))
+  {
+    $MessageBody = ('{1} - Email generated from {0}' -f $env:computername, $DateTime)
+    Write-Warning -Message 'Setting Message Body to default message'
+  }
+  elseif(($MessageBody -match '.txt') -or ($MessageBody -match '.htm'))
+  {
+    if(Test-Path $MessageBody)
+    {
+      [String]$MessageBody = Get-Content -Path $MessageBody
+    }
+  }
+  elseif(-not ($MessageBody -is [String]))
+  {
+    $MessageBody = ('{0} - Original message was not sent as a String.' -f $DateTime)
+  }
+  else
+  {
+    $MessageBody = ("{0}`n{1}" -f $MessageBody, $DateTime)
+  }
+    
+  if([string]::IsNullOrEmpty($ErrorFile))
+  {
+    $ErrorFile = New-TemporaryFile
+    Write-Warning  -Message ('Setting Error File to: {0}' -f $ErrorFile)
+  }
+  $SplatSendMessage = @{
+    From        = $MailFrom
+    To          = $MailTo
+    Subject     = $msgsubj
+    Body        = $MessageBody
+    Priority    = 'High'
+    ErrorAction = 'Stop'
+  }
+  
+  if($AttachedFile)
+  {
+    Write-Verbose -Message 'Inserting file attachment'
+    $SplatSendMessage.Attachments = $AttachedFile
+  }
+  if($MessageBody.Contains('html'))
+  {
+    Write-Verbose -Message 'Setting Message Body to HTML'
+    $SplatSendMessage.BodyAsHtml  = $true
+  }
+  
+  foreach($SMTPServer in $SmtpServers)
+  {
+    try
+    {
+      Write-Verbose -Message ('Try to send mail thru {0}' -f $SMTPServer)
+      Send-MailMessage -SmtpServer $SMTPServer  @SplatSendMessage
+      # Write-Output $SMTPServer  @SplatSendMessage
+      Write-Verbose -Message ('successful from {0}' -f $SMTPServer)
+      Write-Host -Object ("`nsuccessful from {0}" -f $SMTPServer) -ForegroundColor green
+      Break 
+    } 
+    catch 
+    {
+      $ErrorMessage  = $_.exception.message
+      Write-Verbose -Message ("Error Message: `n{0}" -f $ErrorMessage)
+      ('Unable to send message thru {0} server' -f $SMTPServer) | Out-File -FilePath $ErrorFile -Append
+      ('- {0}' -f $ErrorMessage) | Out-File -FilePath $ErrorFile -Append
+      Write-Verbose -Message ('Errors written to: {0}' -f $ErrorFile)
+    }
+  }
+}
+
+function Show-AsciiMenu {
+  <#
+      .SYNOPSIS
+      Describe purpose of "Show-AsciiMenu" in 1-2 sentences.
+
+      .DESCRIPTION
+      Add a more complete description of what the function does.
+
+      .PARAMETER Title
+      Describe parameter -Title.
+
+      .PARAMETER MenuItems
+      Describe parameter -MenuItems.
+
+      .PARAMETER TitleColor
+      Describe parameter -TitleColor.
+
+      .PARAMETER LineColor
+      Describe parameter -LineColor.
+
+      .PARAMETER MenuItemColor
+      Describe parameter -MenuItemColor.
+
+      .EXAMPLE
+      Show-AsciiMenu -Title Value -MenuItems Value -TitleColor Value -LineColor Value -MenuItemColor Value
+      Describe what this call does
+
+      .NOTES
+      Place additional notes here.
+
+      .LINK
+      URLs to related sites
+      The first link is opened by Get-Help -Online Show-AsciiMenu
+
+      .INPUTS
+      List of input types that are accepted by this function.
+
+      .OUTPUTS
+      List of output types produced by this function.
+  #>
+
+
+  [CmdletBinding()]
+  param
+  (
+    [string]$Title = 'Title',
+
+    [String[]]$MenuItems = 'None',
+
+    [string]$TitleColor = 'Red',
+
+    [string]$LineColor = 'Yellow',
+
+    [string]$MenuItemColor = 'Cyan'
+  )
+  Begin{
+    # Set Variables
+    $i = 1
+    $Tab = "`t"
+    $VertLine = '║'
+  
+    function Write-HorizontalLine
+    {
+      param
+      (
+        [Parameter(Position = 0)]
+        [string]
+        $DrawLine = 'Top'
+      )
+      Switch ($DrawLine) {
+        Top 
+        {
+          Write-Host ('╔{0}╗' -f $HorizontalLine) -ForegroundColor $LineColor
+        }
+        Middle 
+        {
+          Write-Host ('╠{0}╣' -f $HorizontalLine) -ForegroundColor $LineColor
+        }
+        Bottom 
+        {
+          Write-Host ('╚{0}╝' -f $HorizontalLine) -ForegroundColor $LineColor
+        }
+      }
+    }
+    function Get-Padding
+    {
+      param
+      (
+        [Parameter(Mandatory, Position = 0)]
+        [int]$Multiplier 
+      )
+      "`0"*$Multiplier
+    }
+    function Write-MenuTitle
+    {
+      Write-Host ('{0}{1}' -f $VertLine, $TextPadding) -NoNewline -ForegroundColor $LineColor
+      Write-Host ($Title) -NoNewline -ForegroundColor $TitleColor
+      if($TotalTitlePadding % 2 -eq 1)
+      {
+        $TextPadding = Get-Padding -Multiplier ($TitlePaddingCount + 1)
+      }
+      Write-Host ('{0}{1}' -f $TextPadding, $VertLine) -ForegroundColor $LineColor
+    }
+    function Write-MenuItems
+    {
+      foreach($menuItem in $MenuItems)
+      {
+        $number = $i++
+        $ItemPaddingCount = $TotalLineWidth - $menuItem.Length - 6 #This number is needed to offset the Tab, space and 'dot'
+        $ItemPadding = Get-Padding -Multiplier $ItemPaddingCount
+        Write-Host $VertLine  -NoNewline -ForegroundColor $LineColor
+        Write-Host ('{0}{1}. {2}{3}' -f $Tab, $number, $menuItem, $ItemPadding) -NoNewline -ForegroundColor $LineColor
+        Write-Host $VertLine -ForegroundColor $LineColor
+      }
+    }
+  }
+
+  Process
+  {
+    $TitleCount = $Title.Length
+    $LongestMenuItemCount = ($MenuItems | Measure-Object -Maximum -Property Length).Maximum
+    Write-Debug -Message ('LongestMenuItemCount = {0}' -f $LongestMenuItemCount)
+
+    if  ($TitleCount -gt $LongestMenuItemCount)
+    {
+      $ItemWidthCount = $TitleCount
+    }
+    else
+    {
+      $ItemWidthCount = $LongestMenuItemCount
+    }
+
+    if($ItemWidthCount % 2 -eq 1)
+    {
+      $ItemWidth = $ItemWidthCount + 1
+    }
+    else
+    {
+      $ItemWidth = $ItemWidthCount
+    }
+    Write-Debug -Message ('Item Width = {0}' -f $ItemWidth)
+   
+    $TotalLineWidth = $ItemWidth + 10
+    Write-Debug -Message ('Total Line Width = {0}' -f $TotalLineWidth)
+  
+    $TotalTitlePadding = $TotalLineWidth - $TitleCount
+    Write-Debug -Message ('Total Title Padding  = {0}' -f $TotalTitlePadding)
+  
+    $TitlePaddingCount = [math]::Floor($TotalTitlePadding / 2)
+    Write-Debug -Message ('Title Padding Count = {0}' -f $TitlePaddingCount)
+
+    $HorizontalLine = '═'*$TotalLineWidth
+    $TextPadding = Get-Padding -Multiplier $TitlePaddingCount
+    Write-Debug -Message ('Text Padding Count = {0}' -f $TextPadding.Length)
+
+
+    Write-HorizontalLine -DrawLine Top
+    Write-MenuTitle
+    Write-HorizontalLine -DrawLine Middle
+    Write-MenuItems
+    Write-HorizontalLine -DrawLine Bottom
+  }
+
+  End
+  {}
+}
+
+do{
+$Raspberry = $null
+
+#Show-AsciiMenu -Title 'THIS IS THE TITLE' -MenuItems 'Exchange Server', 'Active Directory', 'Sytem Center Configuration Manager', 'Lync Server' -TitleColor Red  -MenuItemColor green
+Show-AsciiMenu -Title 'EXIT STRATAGY' -MenuItems 'Shutdown and Restart system', 'Rerun Fast Cruise','Exit' #-Debug
+$Raspberry = Read-Host 'Select Number'
+
+switch($Raspberry)
+{
+1 {Restart-Computer}
+2 {Start-FastCruise @FastCruiseSplat}
+3 {Exit}
+
+<#
+$EmailMessage =  Read-Host "Message to Send"
+Send-eMail @SplatSendEmailHelpDesk -MessageBody $EmailMessage
+#>
+
+}
+
+}Until ($Raspberry)
 
