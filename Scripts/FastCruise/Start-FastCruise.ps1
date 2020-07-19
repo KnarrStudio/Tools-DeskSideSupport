@@ -40,12 +40,12 @@ function Start-FastCruise
     [ValidateScript({
           If($_ -match '.csv')
           {
-            $true
-          }
+$true
+}
           Else
           {
-            Throw 'Input file needs to be CSV'
-          }
+Throw 'Input file needs to be CSV'
+}
     })][String]$FastCruiseFile
   )
 
@@ -87,8 +87,8 @@ function Start-FastCruise
     }
     catch
     {
-      $PhysicalLocations = $null
-    }
+$PhysicalLocations = $null
+}
 
 
     <#bookmark Vb Form #>
@@ -120,17 +120,17 @@ function Start-FastCruise
 
         'InputBox'
         {
-          $Response = [Microsoft.VisualBasic.Interaction]::InputBox($Message, $TitleBar)
-        }
+$Response = [Microsoft.VisualBasic.Interaction]::InputBox($Message, $TitleBar)
+}
         'YesNoBox'
         {
-          $Response = [Microsoft.VisualBasic.Interaction]::MsgBox($Message, 'YesNo,SystemModal,MsgBoxSetForeground', $TitleBar)
-        }
+$Response = [Microsoft.VisualBasic.Interaction]::MsgBox($Message, 'YesNo,SystemModal,MsgBoxSetForeground', $TitleBar)
+}
       }
       if($Response -eq '')
       {
-        Break
-      }
+Break
+}
       Return $Response
     } # End VbForm-Function
 
@@ -212,8 +212,8 @@ function Start-FastCruise
       {
         $LatestStatus = $CompImport |
         Where-Object -FilterScript {
-          $PSItem.ComputerName -eq $env:COMPUTERNAME
-        } |
+$PSItem.ComputerName -eq $env:COMPUTERNAME
+} |
         Select-Object -Last 1 
         if($LatestStatus -eq $null)
         {
@@ -266,8 +266,8 @@ function Start-FastCruise
           }
           else
           {
-            $hash.add($key,$obj)
-          }
+$hash.add($key,$obj)
+}
         }
         return $hash
       }
@@ -344,16 +344,16 @@ function Start-FastCruise
         Switch ($SelectParameter){
           'DisplayName' 
           {
-            $SoftwareOutput.displayname
-          }
+$SoftwareOutput.displayname
+}
           'DisplayVersion' 
           {
-            $SoftwareOutput.DisplayVersion
-          }
+$SoftwareOutput.DisplayVersion
+}
           default 
           {
-            $SoftwareOutput
-          }
+$SoftwareOutput
+}
         }
       }
     } # End InstalledSoftware-Function
@@ -367,12 +367,12 @@ function Start-FastCruise
       $MacAddress = (Get-NetAdapter -Physical | Where-Object -Property status -EQ -Value 'Up').macaddress
       if($LastFour)
       {
-        $MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')
-      }
+$MacInfo = (($MacAddress.Split('-',5))[4]).replace('-',':')
+}
       else
       {
-        $MacInfo = $MacAddress
-      }
+$MacInfo = $MacAddress
+}
       $MacInfo
     }
 
@@ -413,8 +413,8 @@ function Start-FastCruise
     #$SoftwareChecks = @(@('Adobe', 'Version'), @( 'Mozilla Firefox', 'Version'), @('McAfee Agent', 'Version')) #,@('VMware','Version'))
     foreach($SoftwareItem in $SoftwareChecks)
     {
-      $ComputerStat["$SoftwareItem"] = Get-InstalledSoftware -SoftwareName $SoftwareItem[0] -SelectParameter DisplayVersion
-    }
+$ComputerStat["$SoftwareItem"] = Get-InstalledSoftware -SoftwareName $SoftwareItem[0] -SelectParameter DisplayVersion
+}
 
     Write-Verbose -Message 'Getting Last Status recorded'
     $LatestStatus = (Get-LastComputerStatus -FastCruiseReport $FastCruiseReport) 
@@ -486,8 +486,8 @@ Phone
         $Phone = Show-VbForm -InputBox -Message 'Nearest Phone Number (757-555-1234):'
         if($Phone -eq '')
         {
-          Break
-        }
+Break
+}
       }
       $ComputerStat['Phone'] = $Phone
     }
@@ -505,8 +505,8 @@ Phone
   {
     $ComputerStat |
     ForEach-Object -Process {
-      [pscustomobject]$_
-    } |
+[pscustomobject]$_
+} |
     Export-Csv -Path $FastCruiseReport -NoTypeInformation -Append
 
 
@@ -557,17 +557,17 @@ function Send-eMail
   {
     if(Test-Path -Path $MessageBody)
     {
-      [String]$MessageBody = Get-Content -Path $MessageBody
-    }
+[String]$MessageBody = Get-Content -Path $MessageBody
+}
   }
   elseif(-not ($MessageBody -is [String]))
   {
-    $MessageBody = ('{0} - Original message was not sent as a String.' -f $DateTime)
-  }
+$MessageBody = ('{0} - Original message was not sent as a String.' -f $DateTime)
+}
   else
   {
-    $MessageBody = ("{0}`n{1}" -f $MessageBody, $DateTime)
-  }
+$MessageBody = ("{0}`n{1}" -f $MessageBody, $DateTime)
+}
     
   if([string]::IsNullOrEmpty($ErrorFile))
   {
@@ -691,16 +691,16 @@ function Show-AsciiMenu
       Switch ($DrawLine) {
         Top 
         {
-          Write-Host ('╔{0}╗' -f $HorizontalLine) -ForegroundColor $LineColor
-        }
+Write-Host ('╔{0}╗' -f $HorizontalLine) -ForegroundColor $LineColor
+}
         Middle 
         {
-          Write-Host ('╠{0}╣' -f $HorizontalLine) -ForegroundColor $LineColor
-        }
+Write-Host ('╠{0}╣' -f $HorizontalLine) -ForegroundColor $LineColor
+}
         Bottom 
         {
-          Write-Host ('╚{0}╝' -f $HorizontalLine) -ForegroundColor $LineColor
-        }
+Write-Host ('╚{0}╝' -f $HorizontalLine) -ForegroundColor $LineColor
+}
       }
     }
     function Get-Padding
@@ -718,8 +718,8 @@ function Show-AsciiMenu
       Write-Host ($Title) -NoNewline -ForegroundColor $TitleColor
       if($TotalTitlePadding % 2 -eq 1)
       {
-        $TextPadding = Get-Padding -Multiplier ($TitlePaddingCount + 1)
-      }
+$TextPadding = Get-Padding -Multiplier ($TitlePaddingCount + 1)
+}
       Write-Host ('{0}{1}' -f $TextPadding, $VertLine) -ForegroundColor $LineColor
     }
     function Write-MenuItems
@@ -744,21 +744,21 @@ function Show-AsciiMenu
 
     if  ($TitleCount -gt $LongestMenuItemCount)
     {
-      $ItemWidthCount = $TitleCount
-    }
+$ItemWidthCount = $TitleCount
+}
     else
     {
-      $ItemWidthCount = $LongestMenuItemCount
-    }
+$ItemWidthCount = $LongestMenuItemCount
+}
 
     if($ItemWidthCount % 2 -eq 1)
     {
-      $ItemWidth = $ItemWidthCount + 1
-    }
+$ItemWidth = $ItemWidthCount + 1
+}
     else
     {
-      $ItemWidth = $ItemWidthCount
-    }
+$ItemWidth = $ItemWidthCount
+}
     Write-Debug -Message ('Item Width = {0}' -f $ItemWidth)
    
     $TotalLineWidth = $ItemWidth + 10
@@ -808,8 +808,8 @@ do
     }
     2 
     {
-      Restart-Computer -WhatIf
-    }
+Restart-Computer -WhatIf
+}
     3 
     {
       Break
