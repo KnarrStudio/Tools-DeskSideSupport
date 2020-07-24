@@ -1,6 +1,7 @@
 #requires -Version 3.0
 #requires -runasadministrator
 
+Write-Host 'Edit the $MobikeyCertsPath variable and remove this line.' ; Return
 $MobikeyCertsPath = '\\Networkshare\mobikey\certs'
 
 function Repair-MobiKey 
@@ -21,7 +22,6 @@ function Repair-MobiKey
       .LINK
       https://github.com/KnarrStudio/Tools-DeskSideSupport
       The first link is opened by Get-Help -Online Repair-MobiKey
-
   #>
 
   [CmdletBinding(HelpUri = 'https://github.com/KnarrStudio/Tools-DeskSideSupport',
