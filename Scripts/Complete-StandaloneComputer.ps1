@@ -1,6 +1,6 @@
-﻿#Requires -RunAsAdministrator
+﻿#requires -Version 3.0
+#Requires -RunAsAdministrator
 #Requires -Modules Microsoft.PowerShell.LocalAccounts
-
 <#
     .SYNOPSIS
     This script is to help out with the building of the stand alone systems.
@@ -17,7 +17,6 @@
     Complete-StandaloneComputer.ps1
 
 #>
-
 # Add new users
 Begin{
   $NewUsers = @{
@@ -57,43 +56,46 @@ Begin{
       Password            = '1qaz@WSX3edc$RFV'
     }
   }
-
-
-
+  $NewFolderInfo = [ordered]@{
+    CyberUpdates = @{
+      Path       = 'C:\CyberUpdates'
+      ACLGroup   = 'Administrators'
+      ACLControl = 'Full Control'
+      ReadMeText = 'This is the working folder for the monthly updates and scanning.'
+      ReadMeFile = 'README.TXT'
+    }
+    ScanReports  = @{
+      Path       = 'C:\CyberUpdates\ScanReports'
+      ACLGroup   = 'Administrators'
+      ACLControl = 'Full Control'
+      ReadMeText = 'This is where the "IA" scans engines and reports will be kept.'
+      ReadMeFile = 'README.TXT'
+    }
+  }
   # Variables
-  $NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup')
+  $NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup', 'Guests')
   # $Password911 = Read-Host "Enter a 911 Password" -AsSecureString
   #$PasswordUser = Read-Host -Prompt 'Enter a User Password' -AsSecureString
   #$CurrentUsers = Get-LocalUser
   #$CurrentGroups = Get-LocalGroup
-  
   # House keeping
-
+  
   function New-Folder  
   {
-    $NewFolderInfo = [ordered]@{
-      CyberUpdates = @{
-        Path       = 'C:\CyberUpdates'
-        ACLGroup   = 'Administrators'
-        ACLControl = 'Full Control'
-        ReadMeText = 'This is the working folder for the monthly updates and scanning.'
-        ReadMeFile = 'README.TXT'
-      }
-      ScanReports  = @{
-        Path       = 'C:\CyberUpdates\ScanReports'
-        ACLGroup   = 'Administrators'
-        ACLControl = 'Full Control'
-        ReadMeText = 'This is where the "IA" scans engines and reports will be kept.'
-        ReadMeFile = 'README.TXT'
-      }
-    }
-
+    <#
+        .SYNOPSIS
+        Short Description
+    #>
+    param
+    (
+      [Parameter(Mandatory, Position = 0)]
+      [Object]$NewFolderInfo
+    )
     foreach($ItemKey in $NewFolderInfo.keys)
     {
       $NewFolderPath = $NewFolderInfo.$ItemKey.Path
       $NewFile = $NewFolderInfo.$ItemKey.ReadMeFile
       $FileText = $NewFolderInfo.$ItemKey.ReadMeText
-    
       If(-not (Test-Path -Path $NewFolderPath))
       {
         New-Item -Path $NewFolderPath -ItemType Directory -Force -WhatIf
@@ -101,123 +103,163 @@ Begin{
       }
     }
   }
-
-
-  function Add-UsersAndGroups  
+  
+  function Add-LocalRFVGroups  
   {
     <#
         .SYNOPSIS
         Short Description
     #>
+    param
+    (
+      [Parameter(Mandatory, Position = 0)]
+      [String]$NewGroups
+    )
+    $LocalUserGroups = (Get-LocalGroup).name
     ForEach($NewGroup in $NewGroups)
     {
-      $GroupExists = Get-LocalGroup -Name $NewGroup -ErrorAction SilentlyContinue
-      if(-not $GroupExists)
+      if($NewGroup -notin $LocalUserGroups)
       {
+        Write-Verbose -Message ('Creating {0} Account' -f $NewGroup)
         New-LocalGroup -Name $NewGroup -Description $NewGroup -WhatIf
       }
     }
+  }
   
-    ForEach ($UserName in $NewUsers.Keys) 
+  function Add-RFVLocalUsers  
+  {
+    <#
+        .SYNOPSIS
+        Short Description
+    #>
+    param
+    (
+      [Parameter(Mandatory, Position = 0)]
+      [Object]$UserName,
+      [Parameter(Mandatory, Position = 1)]
+      [Object]$UserInfo
+    )
+    $LocalUserNames = (Get-LocalUser).name
+    $SecurePassword = ConvertTo-SecureString -String ($UserInfo.Password) -AsPlainText -Force
+    $UserDescription = ($UserInfo.Description)
+    $UserFullName = ($UserInfo.FullName)
+    If ($UserName -notin $LocalUserNames)
     {
-      $UserInfo = $NewUsers[$UserName]
-      $UserExists = Get-LocalUser -Name $UserName -ErrorAction SilentlyContinue
-
-      $SecurePassword = ConvertTo-SecureString -String ($UserInfo.Password) -AsPlainText -Force
-
-      If (-not $UserExists)
-      {
-        $UserDescription = ($UserInfo.Description)
-        $UserFullName = ($UserInfo.FullName)
-
-        Write-Verbose -Message ('Creating {0} Account' -f $UserFullName)
-        New-LocalUser -Name $UserName -Description $UserDescription -FullName ($UserInfo.FullName) -Password $SecurePassword -WhatIf -Verbose
-      }
-      $UserExists = Get-LocalUser -Name $UserName -ErrorAction SilentlyContinue
-      If ($UserExists)
-      {
-        Add-LocalGroupMember -Group $UserInfo.AccountGroup -Member $UserName -WhatIf
-      }
+      Write-Verbose -Message ('Creating {0} Account' -f $UserFullName)
+      New-LocalUser -Name $UserName -Description $UserDescription -FullName $UserFullName  -Password $SecurePassword -WhatIf -ErrorAction SilentlyContinue
     }
   }
+  
+  function Add-RFVUsersToGroups
+  {
+    <#
+        .SYNOPSIS
+        Short Description
+    #>
+    param
+    (
+      [Parameter(Mandatory, Position = 0)]
+      [Object]$UserName,
+      [Parameter(Mandatory, Position = 1)]
+      [Object]$UserInfo
+    )
+    $UserPrimaryGroup = ($UserInfo.AccountGroup) 
+    $GroupMembership = (Get-LocalGroupMember -Group $UserPrimaryGroup | Where-Object -Property ObjectClass -EQ -Value User).Name
+    if($GroupMembership -match $UserName)
+    {
+      Write-Verbose -Message ('Adding "{0}" Account to {1} group' -f $($UserInfo.FullName), $UserPrimaryGroup) -Verbose
+      Add-LocalGroupMember -Group $UserPrimaryGroup -Member $UserName -ErrorAction Stop
+    }
+  }
+  
   function Uninstall-Software  
   {
     <#
         .SYNOPSIS
         Uninstall unneeded or unwanted software
     #>
-
     [CmdletBinding(SupportsShouldProcess)]
     param
     (
       [Parameter(Mandatory, Position = 0)]
-      [String]$SoftwareName
+      [String]$Application
     )
-  
-    
     function Get-SoftwareList
     {
       param
       (
-        [Object]
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true, HelpMessage = 'Data to filter')]
-        $InputObject
+        [Parameter(Mandatory, ValueFromPipeline, HelpMessage = 'Data to filter')]
+        [Object]$InputObject
       )
       process
       {
-        if ($InputObject.DisplayName -match $SoftwareName)
+        # if ($InputObject.DisplayName -match $SoftwareName)
+        if ($InputObject.DisplayName -match 'Keepass')
         {
           $InputObject
         }
       }
     }
-
-    $SoftwareList = $null
-
-    $app = (Get-ChildItem -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall  |
-      Get-ItemProperty | 
-      Get-SoftwareList |
-    Select-Object -Property DisplayName, UninstallString)
-    
-
-    #$SoftwareList
-
-    ForEach ($app in $SoftwareList) 
+    $Application = 'Keepas', 'Cisco'
+    $InstalledSoftware = (Get-ItemProperty  -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*)
+    $InstalledSoftwareNames = $InstalledSoftware.DisplayName  
+    foreach ($item in $Application)
     {
-      #$App.UninstallString
-      If ($app.UninstallString) 
+      Write-Host -Object $item -ForegroundColor Cyan
+      if ($InstalledSoftwareNames -match $item)
       {
-        $uninst = ($app.UninstallString)
-        $GUID = ($uninst.split('{')[1]).trim('}')
-        Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
-        #Write-Host $uninst
+        Write-Host -Object $InstalledSoftwareNames -ForegroundColor Yellow
+      }
+    }
+    $RemoveList = 
+    $SoftwareList = $null
+    #$SoftwareList
+    ForEach ($App in $Application) 
+    {
+      if($InstalledSoftware -contains $App)
+      {
+        #$App.UninstallString
+        If ($App.UninstallString) 
+        {
+          $uninst = ($App.UninstallString)
+          if($uninst -match 'MsiExec.exe')
+          {
+            $GUID = ($uninst.split('{')[1]).trim('}')
+            Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
+            #Write-Host $uninst
+          }
+          else
+          {
+          Write-Output -InputObject 'Else'
+          }
+        }
       }
     }
   }
+  
   function Set-WallPaper  
   {
     <#
         .SYNOPSIS
         Change Desktop picture/background
     #>
- 
     param
     (
       [Parameter(Position = 0)]
       #[string]$BackgroundSource = "$env:HOMEDRIVE\Windows\Web\Wallpaper\Windows\img0.jpg",
       #[string]$BackupgroundDest = "$env:PUBLIC\Pictures\BG.jpg"
-    [string]$BackgroundSource = "$env:HOMEDRIVE\Windows\Web\Wallpaper\Windows\img0.jpg",
+      [string]$BackgroundSource = "$env:HOMEDRIVE\Windows\Web\Wallpaper\Windows\img0.jpg",
       [string]$BackupgroundDest = "$env:HOMEDRIVE\Windows\Web\Wallpaper\Windows\img0.jpg"
     )
     If ((Test-Path -Path $BackgroundSource) -eq $false)
     {
       Copy-Item -Path $BackgroundSource -Destination $BackupgroundDest -Force -WhatIf
     }
-    
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name Wallpaper -Value $BackupgroundDest 
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name TileWallpaper -Value '0'
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name WallpaperStyle -Value '10' -Force
   }
+  
   function Set-CdLetterToX  
   {
     <#
@@ -229,9 +271,7 @@ Begin{
       [Parameter(Position = 0)]
       [Object]$CdDrive = (Get-WmiObject -Class Win32_volume -Filter 'DriveType=5'|   Select-Object -First 1)
     )
-  
-   
-    If ($CdDrive)
+    if($CdDrive)
     {
       if(-not (Test-Path -Path X:\))
       {
@@ -243,15 +283,25 @@ Begin{
     }
   }
 }
-  
+
 Process{
-  New-Folder 
-  #Add-UsersAndGroups
+  Write-Output -InputObject 'New Folders'
+  New-Folder -NewFolderInfo $NewFolderInfo
+  
+  Write-Output -InputObject 'Add Users and Groups'
+  ForEach ($UserName in $NewUsers.Keys) 
+  {
+    $UserInfo = $NewUsers[$UserName]
+    Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
+    Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
+    Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
+  }
+  
+  Write-Output -InputObject "Set CD Letter to 'X'"
   #Set-CdLetterToX
+  
+  Write-Output -InputObject 'Set wallpaper'
   #Set-WallPaper
-  #Uninstall-Software
 
 }
 End{}
-
-
