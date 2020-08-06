@@ -19,8 +19,6 @@ function Uninstall-Software
     [Parameter(Mandatory,HelpMessage = 'Software DisplayName', Position = 0)]
     [String]$SoftwareName
   )
-    
-
 
   $HKLMPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
   
