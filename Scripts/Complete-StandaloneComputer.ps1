@@ -79,7 +79,6 @@ Begin{
   #$CurrentUsers = Get-LocalUser
   #$CurrentGroups = Get-LocalGroup
   # House keeping
-  
   function New-Folder  
   {
     <#
@@ -103,7 +102,6 @@ Begin{
       }
     }
   }
-  
   function Add-LocalRFVGroups  
   {
     <#
@@ -125,7 +123,6 @@ Begin{
       }
     }
   }
-  
   function Add-RFVLocalUsers  
   {
     <#
@@ -149,7 +146,6 @@ Begin{
       New-LocalUser -Name $UserName -Description $UserDescription -FullName $UserFullName  -Password $SecurePassword -WhatIf -ErrorAction SilentlyContinue
     }
   }
-  
   function Add-RFVUsersToGroups
   {
     <#
@@ -171,7 +167,6 @@ Begin{
       Add-LocalGroupMember -Group $UserPrimaryGroup -Member $UserName -ErrorAction Stop
     }
   }
-  
   function Uninstall-Software  
   {
     <#
@@ -182,7 +177,7 @@ Begin{
     param
     (
       [Parameter(Mandatory, Position = 0)]
-      [String]$Application
+      [String]$SoftwareName
     )
     function Get-SoftwareList
     {
@@ -193,50 +188,30 @@ Begin{
       )
       process
       {
-        # if ($InputObject.DisplayName -match $SoftwareName)
-        if ($InputObject.DisplayName -match 'Keepass')
+        if ($InputObject.DisplayName -match $SoftwareName)
         {
           $InputObject
         }
       }
     }
-    $Application = 'Keepas', 'Cisco'
-    $InstalledSoftware = (Get-ItemProperty  -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*)
-    $InstalledSoftwareNames = $InstalledSoftware.DisplayName  
-    foreach ($item in $Application)
-    {
-      Write-Host -Object $item -ForegroundColor Cyan
-      if ($InstalledSoftwareNames -match $item)
-      {
-        Write-Host -Object $InstalledSoftwareNames -ForegroundColor Yellow
-      }
-    }
-    $RemoveList = 
     $SoftwareList = $null
+    $app = (Get-ChildItem -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall  |
+      Get-ItemProperty | 
+      Get-SoftwareList |
+    Select-Object -Property DisplayName, UninstallString)
     #$SoftwareList
-    ForEach ($App in $Application) 
+    ForEach ($app in $SoftwareList) 
     {
-      if($InstalledSoftware -contains $App)
+      #$App.UninstallString
+      If ($app.UninstallString) 
       {
-        #$App.UninstallString
-        If ($App.UninstallString) 
-        {
-          $uninst = ($App.UninstallString)
-          if($uninst -match 'MsiExec.exe')
-          {
-            $GUID = ($uninst.split('{')[1]).trim('}')
-            Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
-            #Write-Host $uninst
-          }
-          else
-          {
-          Write-Output -InputObject 'Else'
-          }
-        }
+        $uninst = ($app.UninstallString)
+        $GUID = ($uninst.split('{')[1]).trim('}')
+        Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
+        #Write-Host $uninst
       }
     }
   }
-  
   function Set-WallPaper  
   {
     <#
@@ -259,7 +234,6 @@ Begin{
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name TileWallpaper -Value '0'
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name WallpaperStyle -Value '10' -Force
   }
-  
   function Set-CdLetterToX  
   {
     <#
@@ -283,12 +257,8 @@ Begin{
     }
   }
 }
-
 Process{
-  Write-Output -InputObject 'New Folders'
   New-Folder -NewFolderInfo $NewFolderInfo
-  
-  Write-Output -InputObject 'Add Users and Groups'
   ForEach ($UserName in $NewUsers.Keys) 
   {
     $UserInfo = $NewUsers[$UserName]
@@ -296,12 +266,10 @@ Process{
     Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
     Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
   }
-  
-  Write-Output -InputObject "Set CD Letter to 'X'"
+  #Add-LocalRFVGroups -NewGroups $NewGroups
+  #Add-RFVLocalUsers -NewUsers $NewUsers
   #Set-CdLetterToX
-  
-  Write-Output -InputObject 'Set wallpaper'
   #Set-WallPaper
-
+  #Uninstall-Software
 }
 End{}
