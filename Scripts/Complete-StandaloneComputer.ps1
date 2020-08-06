@@ -17,7 +17,7 @@
     Complete-StandaloneComputer.ps1
 
 #>
-# Add new users
+
 Begin{
   $NewUsers = @{
     RFVuser    = @{
@@ -58,14 +58,14 @@ Begin{
   }
   $NewFolderInfo = [ordered]@{
     CyberUpdates = @{
-      Path       = 'C:\CyberUpdates'
+      Path       = 'D:\CyberUpdates'
       ACLGroup   = 'Administrators'
       ACLControl = 'Full Control'
       ReadMeText = 'This is the working folder for the monthly updates and scanning.'
       ReadMeFile = 'README.TXT'
     }
     ScanReports  = @{
-      Path       = 'C:\CyberUpdates\ScanReports'
+      Path       = 'D:\CyberUpdates\ScanReports'
       ACLGroup   = 'Administrators'
       ACLControl = 'Full Control'
       ReadMeText = 'This is where the "IA" scans engines and reports will be kept.'
@@ -97,8 +97,8 @@ Begin{
       $FileText = $NewFolderInfo.$ItemKey.ReadMeText
       If(-not (Test-Path -Path $NewFolderPath))
       {
-        New-Item -Path $NewFolderPath -ItemType Directory -Force -WhatIf
-        $FileText | Out-File -FilePath $NewFolderPath"\"$NewFile -WhatIf
+        New-Item -Path $NewFolderPath -ItemType Directory -Force
+        $FileText | Out-File -FilePath $NewFolderPath"\"$NewFile
       }
     }
   }
@@ -127,7 +127,8 @@ Begin{
   {
     <#
         .SYNOPSIS
-        Short Description
+        Add new local users to the computer
+
     #>
     param
     (
@@ -259,17 +260,19 @@ Begin{
 }
 Process{
   New-Folder -NewFolderInfo $NewFolderInfo
-  ForEach ($UserName in $NewUsers.Keys) 
+  
+<#  ForEach ($UserName in $NewUsers.Keys) 
   {
     $UserInfo = $NewUsers[$UserName]
     Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
     Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
     Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
-  }
-  #Add-LocalRFVGroups -NewGroups $NewGroups
-  #Add-RFVLocalUsers -NewUsers $NewUsers
+  }#>
+
   #Set-CdLetterToX
+  
   #Set-WallPaper
+  
   #Uninstall-Software
 }
 End{}
