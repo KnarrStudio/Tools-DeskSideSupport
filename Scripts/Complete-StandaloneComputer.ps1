@@ -172,44 +172,99 @@ Begin{
   {
     <#
         .SYNOPSIS
-        Uninstall unneeded or unwanted software
+        Uninstalls software based on Parameter, File or Pick list.
+
+        .LINK
+        https://github.com/KnarrStudio/Tools-StandAloneSystems/blob/master/Scripts/Uninstall-Software.ps1
     #>
-    [CmdletBinding(SupportsShouldProcess)]
+
+
+    [CmdletBinding(SupportsShouldProcess,DefaultParameterSetName = 'Default')]
     param
     (
-      [Parameter(Mandatory, Position = 0)]
-      [String]$SoftwareName
+      [Parameter(Mandatory,HelpMessage = 'Add help message for user', Position = 0,ParameterSetName = 'String')]
+      [String[]]$SoftwareList,
+      [Parameter(Mandatory,HelpMessage = 'Add help message for user', Position = 0,ParameterSetName = 'File')]
+      [ValidateScript({
+            If($_ -match '.txt')
+            {
+              $true
+            }
+            Else
+            {
+              Throw 'Input file needs to be plan text'
+            }
+      })][String]$File,
+      [Parameter(Mandatory,HelpMessage = 'Add help message for user', Position = 0,ParameterSetName = 'PickMenu')]
+      [Switch]$PickMenu,
+      [Parameter(Position = 1,ParameterSetName = 'File')]
+      [ValidateSet('New','Updates')]
+      [String]$Add = $null
     )
-    function Get-SoftwareList
+  
+    if($PSBoundParameters.Values.Count -eq 0) 
     {
-      param
-      (
-        [Parameter(Mandatory, ValueFromPipeline, HelpMessage = 'Data to filter')]
-        [Object]$InputObject
-      )
-      process
+      Get-Help -Name Uninstall-Software
+      return
+    }
+  
+    $VerboseMessage = 'Verbose Message'
+    Write-Verbose -Message ('{0}' -f $VerboseMessage)
+  
+    $InstalledSoftware = Get-Package
+          
+    switch($PSBoundParameters.Keys)
+    {
+      'File'
       {
-        if ($InputObject.DisplayName -match $SoftwareName)
+        Write-Verbose -Message ('switch: {0}' -f $($PSBoundParameters.Keys))
+        if(-not $Add)
         {
-          $InputObject
+          $SoftwareList = Get-Content -Path $File
+        }
+        elseif($Add -eq 'New')
+        {
+          $SoftwareList = ($InstalledSoftware |
+            Select-Object -Property Name |
+          Out-GridView -PassThru -Title 'Software Pick List').name 
+          $SoftwareList | Out-File -FilePath $File -Force
+        }
+        elseif($Add -eq 'Updates')
+        {
+          $SoftwareList = ($InstalledSoftware |
+            Select-Object -Property Name |
+          Out-GridView -PassThru -Title 'Software Pick List').name 
+          $SoftwareList | Out-File -FilePath $File -Append
         }
       }
-    }
-    $SoftwareList = $null
-    $app = (Get-ChildItem -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall  |
-      Get-ItemProperty | 
-      Get-SoftwareList |
-    Select-Object -Property DisplayName, UninstallString)
-    #$SoftwareList
-    ForEach ($app in $SoftwareList) 
-    {
-      #$App.UninstallString
-      If ($app.UninstallString) 
+      'PickMenu'
+      { 
+        Write-Verbose -Message ('switch: {0}' -f $($PSBoundParameters.Keys))
+        $SoftwareList = ($InstalledSoftware |
+          Select-Object -Property Name |
+        Out-GridView -PassThru -Title 'Software Pick List').name
+      }
+      'Default'
       {
-        $uninst = ($app.UninstallString)
-        $GUID = ($uninst.split('{')[1]).trim('}')
-        Start-Process -FilePath 'msiexec.exe' -ArgumentList "/X $GUID /passive" -Wait
-        #Write-Host $uninst
+        Write-Verbose -Message ('switch: {0}' -f $($PSBoundParameters.Keys))
+      }
+    }
+
+    if(-not $Add)
+    {
+      Write-Verbose -Message ('foreach Software - Uninstall-Package')
+      foreach($EachSoftware in $SoftwareList)
+      {
+        $EachSoftware = $EachSoftware.Trim()
+        Write-Verbose -Message ('foreach Software: {0}' -f $EachSoftware)
+        try
+        {
+          Get-Package -Name $EachSoftware |  Uninstall-Package -WhatIf -ErrorAction Stop
+        }
+        catch
+        {
+          Write-Warning -Message ('foreach Software: {0}' -f $EachSoftware)
+        }
       }
     }
   }
@@ -261,18 +316,20 @@ Begin{
 Process{
   New-Folder -NewFolderInfo $NewFolderInfo
   
-<#  ForEach ($UserName in $NewUsers.Keys) 
-  {
-    $UserInfo = $NewUsers[$UserName]
-    Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
-    Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
-    Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
+  <#  ForEach ($UserName in $NewUsers.Keys) 
+      {
+      $UserInfo = $NewUsers[$UserName]
+      Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
+      Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
+      Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
   }#>
 
   #Set-CdLetterToX
   
   #Set-WallPaper
   
-  #Uninstall-Software
+  Get-Help -Online -Name Uninstall-Software
+  #Uninstall-Software -File 'C:\Temp\SoftwareList.txt' -Add New
+
 }
 End{}
