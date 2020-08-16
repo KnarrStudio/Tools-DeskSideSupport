@@ -72,12 +72,18 @@ Begin{
       ReadMeFile = 'README.TXT'
     }
   }
+  
   # Variables
+  #$NewFolderInfo = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewFolderInfo.psd1"
+  #$NewUsers = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewUsers.psd1"
+  #$NewGroup = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewGroups.psd1"
+  
   $NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup', 'Guests')
   # $Password911 = Read-Host "Enter a 911 Password" -AsSecureString
   #$PasswordUser = Read-Host -Prompt 'Enter a User Password' -AsSecureString
   #$CurrentUsers = Get-LocalUser
   #$CurrentGroups = Get-LocalGroup
+  
   # House keeping
   function New-Folder  
   {
@@ -98,7 +104,7 @@ Begin{
       If(-not (Test-Path -Path $NewFolderPath))
       {
         New-Item -Path $NewFolderPath -ItemType Directory -Force
-        $FileText | Out-File -FilePath $NewFolderPath"\"$NewFile
+        $FileText | Out-File -FilePath ('{0}\{1}' -f $NewFolderPath, $NewFile)
       }
     }
   }
@@ -261,12 +267,12 @@ Begin{
 Process{
   New-Folder -NewFolderInfo $NewFolderInfo
   
-<#  ForEach ($UserName in $NewUsers.Keys) 
-  {
-    $UserInfo = $NewUsers[$UserName]
-    Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
-    Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
-    Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
+  <#  ForEach ($UserName in $NewUsers.Keys) 
+      {
+      $UserInfo = $NewUsers[$UserName]
+      Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
+      Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
+      Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
   }#>
 
   #Set-CdLetterToX
