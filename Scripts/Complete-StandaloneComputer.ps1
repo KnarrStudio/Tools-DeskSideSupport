@@ -1,6 +1,7 @@
 ﻿#requires -Version 3.0
 #Requires -RunAsAdministrator
-#Requires -Modules Microsoft.PowerShell.LocalAccounts
+#Requires -Modules Microsoft.PowerShell.LocalAccounts, Microsoft.PowerShell.Utility, PackageManagement
+
 <#
     .SYNOPSIS
     This script is to help out with the building of the stand alone systems.
@@ -72,14 +73,16 @@ Begin{
       ReadMeFile = 'README.TXT'
     }
   }
-  
+  #>
   # Variables
-  #$NewFolderInfo = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewFolderInfo.psd1"
-  #$NewUsers = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewUsers.psd1"
-  #$NewGroup = Import-PowerShellDataFile  -Path "D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\NewGroups.psd1"
+  $ConfigFilesFolder = 'D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles'
+
+  #$NewFolderInfo = Import-PowerShellDataFile  -Path ('{0}\NewFolderInfo.psd1' -f $ConfigFilesFolder)
+  #$NewUsers = Import-PowerShellDataFile  -Path ('{0}\NewUsers.psd1' -f $ConfigFilesFolder)
+  $NewGroups = Import-PowerShellDataFile  -Path ('{0}\NewGroups.psd1' -f $ConfigFilesFolder)
   
-  $NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup', 'Guests')
-  # $Password911 = Read-Host "Enter a 911 Password" -AsSecureString
+  #$NewGroups = @('RFV_Users', 'RFV_Admins', 'TestGroup', 'Guests')
+  #$Password911 = Read-Host "Enter a 911 Password" -AsSecureString
   #$PasswordUser = Read-Host -Prompt 'Enter a User Password' -AsSecureString
   #$CurrentUsers = Get-LocalUser
   #$CurrentGroups = Get-LocalGroup
@@ -117,17 +120,18 @@ Begin{
     param
     (
       [Parameter(Mandatory, Position = 0)]
-      [String]$NewGroups
+      [Object]$GroupList
     )
-    $LocalUserGroups = (Get-LocalGroup).name
-    ForEach($NewGroup in $NewGroups)
+    foreach($NewGroup in $GroupList.Keys)
     {
-      if($NewGroup -notin $LocalUserGroups)
+      $LocalUserGroups = (Get-LocalGroup).name
+
+      if($($GroupList[$NewGroup].Name) -notin $LocalUserGroups)
       {
         Write-Verbose -Message ('Creating {0} Account' -f $NewGroup)
-        New-LocalGroup -Name $NewGroup -Description $NewGroup -WhatIf
+        New-LocalGroup -Name $($GroupList[$NewGroup].Name) -Description $($GroupList[$NewGroup].Description) -WhatIf
       }
-    }
+    }  
   }
   function Add-RFVLocalUsers  
   {
@@ -320,22 +324,30 @@ Begin{
   }
 }
 Process{
+  
+  # Creates new folder structure 
   New-Folder -NewFolderInfo $NewFolderInfo
   
-  <#  ForEach ($UserName in $NewUsers.Keys) 
-      {
-      $UserInfo = $NewUsers[$UserName]
-      Add-LocalRFVGroups -NewGroups ($UserInfo.AccountGroup)
-      Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
-      Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
-  }#>
-
-  #Set-CdLetterToX
+  # Changes the CD/DVD drive letter to "X" for standardization.
+  Set-CdLetterToX
   
-  #Set-WallPaper
+  # Sets the Wallpaper to a specific flavor for all users.
+  Set-WallPaper
+  
+  # Adds new groups 
+  Add-LocalRFVGroups -GroupList $NewGroups 
+   
+  # Adds new users based on the "NewUsers.psd1" file
+  ForEach ($UserName in $NewUsers.Keys) 
+  {
+    $UserInfo = $NewUsers[$UserName]
+    Add-RFVLocalUsers -UserName $UserName -userinfo $UserInfo
+    Add-RFVUsersToGroups -UserName $UserName -UserInfo $UserInfo
+  }
   
   Get-Help -Online -Name Uninstall-Software
   #Uninstall-Software -File 'C:\Temp\SoftwareList.txt' -Add New
 
 }
-End{}
+End{
+}
