@@ -106,8 +106,8 @@ Begin{
       $FileText = $NewFolderInfo.$ItemKey.ReadMeText
       If(-not (Test-Path -Path $NewFolderPath))
       {
-        New-Item -Path $NewFolderPath -ItemType Directory -Force
-        $FileText | Out-File -FilePath ('{0}\{1}' -f $NewFolderPath, $NewFile)
+        New-Item -Path $NewFolderPath -ItemType Directory -Force -WhatIf
+        $FileText | Out-File -FilePath ('{0}\{1}' -f $NewFolderPath, $NewFile) -WhatIf
       }
     }
   }
