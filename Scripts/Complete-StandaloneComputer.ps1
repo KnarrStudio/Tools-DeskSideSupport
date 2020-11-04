@@ -73,6 +73,20 @@ Begin{
       ReadMeFile = 'README.TXT'
     }
   }
+  
+  $NewNicConfigSplat = @{
+    InterfaceAlias = 'Ethernet' 
+    IpAddress = '192.168.86.92' 
+    PrefixLength = 24 
+    DefaultGateway = '192.168.86.1'
+  }
+   $SetNicConfigSplat = @{
+    InterfaceAlias = 'Ethernet' 
+    IpAddress = '192.168.86.92' 
+    PrefixLength = 24 
+    }
+  
+  
   #>
   # Variables
   $ConfigFilesFolder = 'D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles'
@@ -88,8 +102,7 @@ Begin{
   #$CurrentGroups = Get-LocalGroup
   
   # House keeping
-  function New-Folder  
-  {
+  function New-Folder {
     <#
         .SYNOPSIS
         Short Description
@@ -106,13 +119,12 @@ Begin{
       $FileText = $NewFolderInfo.$ItemKey.ReadMeText
       If(-not (Test-Path -Path $NewFolderPath))
       {
-        New-Item -Path $NewFolderPath -ItemType Directory -Force -WhatIf
-        $FileText | Out-File -FilePath ('{0}\{1}' -f $NewFolderPath, $NewFile) -WhatIf
+        New-Item -Path $NewFolderPath -ItemType Directory -Force #-WhatIf
+        $FileText | Out-File -FilePath ('{0}\{1}' -f $NewFolderPath, $NewFile) #-WhatIf
       }
     }
   }
-  function Add-LocalRFVGroups  
-  {
+  function Add-LocalRFVGroups    {
     <#
         .SYNOPSIS
         Short Description
@@ -133,8 +145,7 @@ Begin{
       }
     }  
   }
-  function Add-RFVLocalUsers  
-  {
+  function Add-RFVLocalUsers    {
     <#
         .SYNOPSIS
         Add new local users to the computer
@@ -157,8 +168,7 @@ Begin{
       New-LocalUser -Name $UserName -Description $UserDescription -FullName $UserFullName  -Password $SecurePassword -WhatIf -ErrorAction SilentlyContinue
     }
   }
-  function Add-RFVUsersToGroups
-  {
+  function Add-RFVUsersToGroups  {
     <#
         .SYNOPSIS
         Short Description
@@ -178,8 +188,7 @@ Begin{
       Add-LocalGroupMember -Group $UserPrimaryGroup -Member $UserName -ErrorAction Stop
     }
   }
-  function Uninstall-Software  
-  {
+  function Uninstall-Software    {
     <#
         .SYNOPSIS
         Uninstalls software based on Parameter, File or Pick list.
@@ -278,8 +287,7 @@ Begin{
       }
     }
   }
-  function Set-WallPaper  
-  {
+  function Set-WallPaper    {
     <#
         .SYNOPSIS
         Change Desktop picture/background
@@ -300,8 +308,7 @@ Begin{
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name TileWallpaper -Value '0'
     Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop\' -Name WallpaperStyle -Value '10' -Force
   }
-  function Set-CdLetterToX  
-  {
+  function Set-CdLetterToX    {
     <#
         .SYNOPSIS
         Test for a CD and change the drive Letter to X:
@@ -321,6 +328,31 @@ Begin{
         }
       }
     }
+  }
+  function Set-NicConfiguration {
+    <#
+        .SYNOPSIS
+        Test for a CD and change the drive Letter to X:
+    #>
+    param
+    (
+      [Parameter(Position = 0)]
+      [hashtable]$NewNetConfigSplat,
+      [Parameter(Position = 1)]
+      [hashtable]$SetNetConfigSplat
+    )
+    
+    
+    $NIC = Get-NetIPInterface -AddressFamily IPv4 | sort -Property InterfaceMetric | select -f 1 
+    if($NIC.Dhcp -eq 'Enabled'){
+      Set-NetIPInterface  -InterfaceAlias $NIC.InterfaceAlias -AddressFamily IPv4 -Dhcp Disabled
+    }
+    Rename-NetAdapter -Name $NIC.InterfaceAlias -NewName 'Ethernet'
+    
+    
+    #New-NetIPAddress @NewNetConfigSplat #-WhatIf
+    Set-NetIPAddress  #@SetNetConfigSplat #-WhatIf
+    
   }
 }
 Process{
@@ -348,6 +380,8 @@ Process{
   Get-Help -Online -Name Uninstall-Software
   #Uninstall-Software -File 'C:\Temp\SoftwareList.txt' -Add New
 
+  # Sets the network configuration on the NIC
+  #Set-NicConfiguration $NicConfigSplat
 }
 End{
 }
