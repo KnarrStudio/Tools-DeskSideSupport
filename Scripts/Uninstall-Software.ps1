@@ -144,11 +144,12 @@ function Uninstall-Software
   }
 }
 
-Uninstall-Software -SoftwareList 'Microsoft Edge Dev', 'Raspberry Pi Imager', 'ITPS.OMCS.Tools' -Verbose
+# Examples:
+# Uninstall-Software -SoftwareList 'Microsoft Edge Dev', 'Raspberry Pi Imager', 'ITPS.OMCS.Tools' -Verbose
 
-Uninstall-Software -File 'D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\SoftwareList.txt' -Add Updates
+# Uninstall-Software -File 'D:\GitHub\KnarrStudio\Tools-StandAloneSystems\Configfiles\SoftwareList.txt' -Add Updates
 
-Uninstall-Software -PickMenu -Verbose
+# Uninstall-Software -PickMenu -Verbose
 
 Get-Help -Online Uninstall-Software
   
