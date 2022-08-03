@@ -1,0 +1,12 @@
+{ 
+"Administrator":  { 
+	"Name":  "sysmaint", 
+	"FullName":  "911", 
+	"Description":  "Emergancy Access PW in \"SCIT\"", 
+	"AccountNeverExpires":  true 
+	}, 
+"Tenant":{ 
+	"POC": "Ned", 
+	"Group Email":"tenant@email.com"  
+	} 
+}
