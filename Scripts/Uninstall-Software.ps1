@@ -42,7 +42,7 @@ function Uninstall-Software
       Place additional notes here.
 
       .LINK
-      https://github.com/KnarrStudio/Tools-StandAloneSystems/blob/master/Scripts/Uninstall-Software.ps1
+      https://github.com/KnarrStudio/Tools-DeskSideSupport/blob/master/Scripts/Uninstall-Software.ps1
 
       .INPUTS
       1. Direct input at the function call
